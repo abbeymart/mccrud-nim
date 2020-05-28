@@ -8,38 +8,42 @@
 #        CRUD Library - common / extendable base type/class
 # 
 
-import db_postgres
+import db_postgres, json
 
 # Define types
 type
     Database* = ref object
         db: DbConn
-    ActionParam* = ref object
-        name: string
-        age: Natural
-    SortParam* = ref object
-        name: string
-        age: Natural
-    QueryParam* = ref object
-        name: string
-        age: Natural
+    ActionParam* = JsonNode
+    SortParam* = JsonNode
+    QueryParam* = JsonNode
     UserParam* = ref object
         name: string
         age: Natural
     CrudParam* = ref object
-        actionParams*: ActionParam
-        sortParams*: SortParam
-        queryParams*: QueryParam
+        actionParams*: JsonNode
+        sortParams*: JsonNode
+        queryParams*: JsonNode
         userInfo*: UserParam
+        token: string
         docIds*: seq[string]
-        test1: string
+        auditColl*: string
+        accessColl*: string
+        serviceColl*: string
+        roleColl*: string
+        userColl*: string
+        logAll*: bool
+        logRead*: bool
+        logCreate*: bool
+        logUpdate*: bool
+        logDelete*: bool
+        skip: uint
+        limit: uint
+        maxQueryLimit: uint
+        mcMessages*: JsonNode
     OptionParam* = ref object
-        actionParams*: ActionParam
-        sortParams*: SortParam
-        queryParams*: QueryParam
-        userInfo*: UserParam
-        docIds*: seq[string]
-        test1: string
+        auditDb: Database
+        
     
 # Variables
 var
