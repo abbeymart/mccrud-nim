@@ -42,8 +42,8 @@ type
         maxQueryLimit: uint
         mcMessages*: JsonNode
     OptionParam* = ref object
+        accessDb: Database
         auditDb: Database
-        
     
 # Variables
 var
