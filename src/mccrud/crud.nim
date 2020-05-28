@@ -17,7 +17,7 @@ type
     ActionParam* = JsonNode
     SortParam* = JsonNode
     QueryParam* = JsonNode
-    UserParam* = ref object
+    UserParam* = object
         name: string
         age: Natural
     CrudParam* = ref object
@@ -32,6 +32,9 @@ type
         serviceColl*: string
         roleColl*: string
         userColl*: string
+        appDb: Database
+        accessDb: Database
+        auditDb: Database
         logAll*: bool
         logRead*: bool
         logCreate*: bool
@@ -55,5 +58,8 @@ var
 
 # default contructor
 
-proc newCrud*(appDb: Database, params: CrudParam, options = OptionParam ): CrudParam =
-    result = CrudParam()
+proc newCrud*(appDb: Database, params: CrudParam): CrudParam =
+    new result
+    result.appDb = appDb
+    result.userInfo = params.userInfo
+    
