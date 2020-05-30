@@ -5,6 +5,7 @@ author        = "Abi Akindele [abbeymart]"
 description   = "mccrud package (nim)"
 license       = "MIT"
 srcDir        = "src"
+skipFiles     = @["project.md"]
 
 
 
