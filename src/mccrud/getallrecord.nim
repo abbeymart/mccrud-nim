@@ -5,24 +5,18 @@
 #    See the file "LICENSE.md", included in this
 #    distribution, for details a bout the copyright / license.
 # 
-#          CRUD Library - save record(s)
+#             CRUD Library - get all record(s)
 # 
 
-## save-record procedure is for creating new record(s) and update existing record(s)
-## by role (access-control)
+## get-all-record procedure is for fetching lookup records
+## 
 ## 
 import crud
 import mcdb, mccache, mcresponse, mctranslog
 
 # constructor
-proc newSaveRecord*() =
+proc newGetAllRecord*() =
     echo "save-constructor"
 
-proc saveRecord*() =
-    echo "save-record"
-
-proc createRecord*() =
-    echo "create-record"
-
-proc updateRecord*() =
+proc getAllRecord*() =
     echo "save-record"

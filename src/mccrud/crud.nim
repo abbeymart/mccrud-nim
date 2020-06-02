@@ -121,3 +121,9 @@ proc checkAccess*(accessDb: Database, options: UserParam): UserParam =
     var db:Database = accessDb
     echo db.repr
     result = UserParam()
+
+proc getCurrentRecord*() =
+    echo "save-record"
+
+proc taskPermitted*() =
+    echo "save-record"
