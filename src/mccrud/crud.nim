@@ -57,6 +57,8 @@ type
         orderParams*: seq[string] ## @["fieldA",]
         orderType: string       ## ASC | DESC (asc | desc)
         groupParams*: seq[string] ## @["fieldA", "fieldB"]
+        skip*: Positive
+        limit*: Positive
         ## Update, Read & Delete
         docIds*: seq[string]
         ## Shared / Commmon
@@ -73,11 +75,7 @@ type
         logCreate*: bool
         logUpdate*: bool
         logDelete*: bool
-        skip*: Positive
-        limit*: Positive
-        maxQueryLimit*: Positive
         mcMessages*: Table[string, string]
-        token: string
         userInfo: UserParam
         checkAccess: bool
         transLog: LogParam 
@@ -115,45 +113,49 @@ type
 # default contructor
 proc newCrud*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
     # var defaultParams = initTable[string, ValueType]()
-    var defaultTable = initTable[string, Table[string, ValueType]]()
-
-    result = CrudParam(appDb: appDb, userInfo: userInfo)
+    var defaultTable = initTable[string, ValueType]()
     
     new result
 
     result.appDb = appDb
     result.userInfo = userInfo
+    # Create/Update
+    result.actionParams = options.getOrDefault("actionParams", @[defaultTable])
+    
+    # Read
+    result.projectParams = options.getOrDefault("projectParams", @[ProjectParam()])
+    result.whereParams = options.getOrDefault("whereParams", @[WhereParam()])
+    result.orderParams = options.getOrDefault("orderParams", @[])
+    result.groupParams = options.getOrDefault("groupParams", @[])
+    result.orderType = options.getOrDefault("orderType", "ASC")
+    result.skip = options.getOrDefault("skip", 0)
+    result.limit = options.getOrDefault("limit" ,100000)
+    
+    # Read, Update & Delete
+    result.docIds = options.getOrDefault("docIds", @[])
 
-    # result.actionParams = options.getOrDefault("actionParams", defaultTable)
-    # result.queryParams = options.getOrDefault("queryParams", defaultTable)
-    # result.queryValues = options.getOrDefault("queryValues", QueryValue())
-    # result.sortParams = options.getOrDefault("sortParams", defaultTable)
-    # result.orderParams = options.getOrDefault("orderParams", defaultTable)
-    # result.groupParams = options.getOrDefault("groupParams", defaultTable)
-    # result.projectParams = options.getOrDefault("projectParams", defaultTable)
-    # result.docIds = options.getOrDefault("docIds", @[])
-    # result.auditColl = options.getOrDefault("auditColl", "audits")
-    # result.accessColl = options.getOrDefault("accessColl", "accesskeys")
-    # result.auditColl = options.getOrDefault("servicecoll", "services")
-    # result.roleColl = options.getOrDefault("roleColl", "roles")
-    # result.userColl = options.getOrDefault("userColl", "users")
-    # result.auditDb = options.getOrDefault("auditDb", appDb)
-    # result.accessDb = options.getOrDefault("acessDb", appDb)
-    # result.logAll = options.getOrDefault("logAll", false)
-    # result.logRead = options.getOrDefault("logRead", false)
-    # result.logCreate = options.getOrDefault("logCreate", false)
-    # result.logUpdate= options.getOrDefault("logUpdate", false)
-    # result.logDelete = options.getOrDefault("logDelete", false)
-    # result.checkAccess = options.getOrDefault("checkAccess", true)
-    # result.skip = options.getOrDefault("skip", 0)
-    # result.limit = options.getOrDefault("limit" ,100000)
-    # result.maxQueryLimit = options.getOrDefault("maxQueryLimit", 100000)
-    # result.mcMessages = options.getOrDefault("messages", defaultTable)
+    # Shared
+    result.auditColl = options.getOrDefault("auditColl", "audits")
+    result.accessColl = options.getOrDefault("accessColl", "accesskeys")
+    result.auditColl = options.getOrDefault("servicecoll", "services")
+    result.roleColl = options.getOrDefault("roleColl", "roles")
+    result.userColl = options.getOrDefault("userColl", "users")
+    result.auditDb = options.getOrDefault("auditDb", appDb)
+    result.accessDb = options.getOrDefault("acessDb", appDb)
+    result.logAll = options.getOrDefault("logAll", false)
+    result.logRead = options.getOrDefault("logRead", false)
+    result.logCreate = options.getOrDefault("logCreate", false)
+    result.logUpdate= options.getOrDefault("logUpdate", false)
+    result.logDelete = options.getOrDefault("logDelete", false)
+    result.checkAccess = options.getOrDefault("checkAccess", true)
+    
+    result.mcMessages = options.getOrDefault("messages", defaultTable)
 
     # translog instance
     result.transLog = newLog(result.auditDb, result.auditColl)
 
-proc roleServices*(accessDb: Database; userGroup: string, roleColl: string = "roles") =
+
+proc roleServices*(accessDb: Database; userGroup: string; roleColl: string = "roles") =
     var db:Database = accessDb
     echo db.repr
 
