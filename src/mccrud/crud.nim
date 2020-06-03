@@ -11,51 +11,62 @@
 import db_postgres, json, tables
 import mctranslog
 
+export db_postgres, json, tables
+
 # Define types
 type
     Database = ref object
         db: DbConn
          
-    ValueType = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | SqlQuery | Database
+    ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | SqlQuery | Database
 
     UserParam* = object
-        name*: string
-        age*: Natural
+        username*: string
         token: string
 
     QueryValue = object
-        fieldName, fieldOp, fieldType: string
+        fieldName*, fieldOp*, fieldType: string
         fieldValue: string
+        # value are string type for params parsing convenience,
+        # values will be cast by fieldType, else will through ValueError exception
 
-    RecordType[V] = object
-        fieldName: string
-        fieldType: string
-        fieldValue: V
+    WhereParam* = object
+        fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*: string
+        order*: int
+        fieldValue*: string
+        fieldValueEnd*: string # for BETWEEN operator
+        # value are string type for params parsing convenience,
+        # values will be cast by fieldType, else will through ValueError exception
 
-    ActionParam = object
-        collName: string
-        record: seq[QueryValue]
+    ProjectParam* = object
+        fieldName*: string
+        show*: bool
 
-    WhereParam = object
-        fieldName, fieldOp, groupOp, fieldType: string
-        order: int
-        fieldValue: string
+    OrderParam* = object
+        fieldName*: string
+        orderType*: string   # ASC | DESC (asc | desc)
 
-    ProjectParam = object
-        fieldName: string
-        show: bool
+    SubQueryParam* = object
+        collName*: string
+        fieldNames*: seq[string]
 
     CrudParam* = ref object
-        collName: string
+        collName*: string
         ## actionParams = @[{"fieldA": 2345, "fieldB": "abc"}], for create & update
         actionParams*: seq[Table[string, ValueType]]
         ## Read-only params =>
         ## projectParams = @[{fieldName: "abc", show: true}] | @[] => SELECT * 
         projectParams*: seq[ProjectParam]
+        ## subQueryParams = @[{"collName": "services", }]
+        subQueryParams*: seq[SubQueryParam]
+        queryDistinct*: bool
         ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},]
-        whereParams*: seq[WhereParam] 
-        orderParams*: seq[string] ## @["fieldA",]
-        orderType: string       ## ASC | DESC (asc | desc)
+        whereParams*: seq[WhereParam]
+        ## orderParams = @[{"fieldName": "fieldA", "orderType": "ASC"}, {"fieldName": "fieldC", "orderType": "DESC"}]
+        ## An order-param without orderType will default to ASC:
+        ## {"fieldName": "fieldP", } => orderType = "ASC" (default)
+        ## 
+        orderParams*: seq[OrderParam]
         groupParams*: seq[string] ## @["fieldA", "fieldB"]
         skip*: Positive
         limit*: Positive
@@ -127,7 +138,7 @@ proc newCrud*(appDb: Database; coll, userInfo: UserParam; options: Table[string,
     result.whereParams = options.getOrDefault("whereParams", @[WhereParam()])
     result.orderParams = options.getOrDefault("orderParams", @[])
     result.groupParams = options.getOrDefault("groupParams", @[])
-    result.orderType = options.getOrDefault("orderType", "ASC")
+    result.queryDistinct = options.getOrDefault("queryDistinct", false)
     result.skip = options.getOrDefault("skip", 0)
     result.limit = options.getOrDefault("limit" ,100000)
     
