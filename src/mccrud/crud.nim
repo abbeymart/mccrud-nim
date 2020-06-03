@@ -9,6 +9,7 @@
 # 
 
 import db_postgres, json, tables
+import mctranslog
 
 # Define types
 type
@@ -20,15 +21,41 @@ type
     UserParam* = object
         name*: string
         age*: Natural
+        token: string
+
+    QueryValue = object
+        fieldName, fieldOp, fieldType: string
+        fieldValue: string
+
+    RecordType[V] = object
+        fieldName: string
+        fieldType: string
+        fieldValue: V
+
+    ActionParam = object
+        collName: string
+        record: seq[QueryValue]
+
+    WhereParam = object
+        fieldName, fieldOp, groupOp, fieldType: string
+        order: int
+        fieldValue: string
+
+    ProjectParam = object
+        fieldName: string
+        show: bool
 
     CrudParam* = ref object
-        actionParams*: Table[string, ValueType]
-        actionQuery*: SqlQuery
-        sortParams*: Table[string, ValueType]
-        orderParams*: Table[string, ValueType]
-        groupParams*: Table[string, Table[string, ValueType]]
-        queryParams*: Table[string, Table[string, ValueType]]
-        projectParams*: Table[string, ValueType]
+        ## actionParams = {""collName": {"fieldA": 2345, "fieldB": "abc"}}
+        ## for create and update actions
+        actionParams*: Table[string, Table[string, ValueType]]
+        orderParams*: seq[string] ## @["fieldA",]
+        orderType: string       ## ASC | DESC (asc | desc)
+        groupParams*: seq[string] ## @["fieldA", "fieldB"]
+        ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},]
+        whereParams*: seq[WhereParam] 
+        ## projectParams = @[{fieldName: "abc", show: true}] | @[] => SELECT *
+        projectParams*: seq[ProjectParam] 
         docIds*: seq[string]
         auditColl*: string
         accessColl*: string
@@ -46,7 +73,11 @@ type
         skip*: Positive
         limit*: Positive
         maxQueryLimit*: Positive
-        mcMessages*: Table[string, string] 
+        mcMessages*: Table[string, string]
+        token: string
+        userInfo: UserParam
+        checkAccess: bool
+        transLog: LogParam 
       
     RequiredParam* = object
         userInfo*: UserParam
@@ -79,39 +110,45 @@ type
         value*: CheckAccess
   
 # default contructor
-proc newCrud*(appDb: Database; params: RequiredParam; options: Table[string, ValueType]): CrudParam =
-    var defaultTable = initTable[string, ValueType]
+proc newCrud*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
+    # var defaultParams = initTable[string, ValueType]()
+    var defaultTable = initTable[string, Table[string, ValueType]]()
+
+    result = CrudParam(appDb: appDb, userInfo: userInfo)
     
     new result
-    
-    result.appDb = appDb
-    result.userInfo = params.userInfo
-    result.token = params.token
 
-    result.actionParams = options.getOrDefault("actionParams", defaultTable)
-    result.actionQuery = options.getOrDefault("actionQuery", sql"")
-    result.queryParams = options.getOrDefault("queryParams", defaultTable)
-    result.sortParams = options.getOrDefault("sortParams", defaultTable)
-    result.orderParams = options.getOrDefault("orderParams", defaultTable)
-    result.groupParams = options.getOrDefault("groupParams", defaultTable)
-    result.projectParams = options.getOrDefault("projectParams", defaultTable)
-    result.docIds = options.getOrDefault("docIds", @[])
-    result.auditColl = options.getOrDefault("auditColl", "audits")
-    result.accessColl = options.getOrDefault("accessColl", "accesskeys")
-    result.auditColl = options.getOrDefault("servicecoll", "services")
-    result.roleColl = options.getOrDefault("roleColl", "roles")
-    result.userColl = options.getOrDefault("userColl", "users")
-    result.auditDb = options.getOrDefault("auditDb", appDb)
-    result.accessDb = options.getOrDefault("acessDb", appDb)
-    result.logAll = options.getOrDefault("logAll", false)
-    result.logRead = options.getOrDefault("logRead", false)
-    result.logCreate = options.getOrDefault("logCreate", false)
-    result.logUpdate= options.getOrDefault("logUpdate", false)
-    result.logDelete = options.getOrDefault("logDelete", false)
-    result.skip = options.getOrDefault("skip", 0)
-    result.limit = options.getOrDefault("limit" ,100000)
-    result.maxQueryLimit = options.getOrDefault("maxQueryLimit", 100000)
-    result.mcMessages = options.getOrDefault("messages", defaultTable)
+    result.appDb = appDb
+    result.userInfo = userInfo
+
+    # result.actionParams = options.getOrDefault("actionParams", defaultTable)
+    # result.queryParams = options.getOrDefault("queryParams", defaultTable)
+    # result.queryValues = options.getOrDefault("queryValues", QueryValue())
+    # result.sortParams = options.getOrDefault("sortParams", defaultTable)
+    # result.orderParams = options.getOrDefault("orderParams", defaultTable)
+    # result.groupParams = options.getOrDefault("groupParams", defaultTable)
+    # result.projectParams = options.getOrDefault("projectParams", defaultTable)
+    # result.docIds = options.getOrDefault("docIds", @[])
+    # result.auditColl = options.getOrDefault("auditColl", "audits")
+    # result.accessColl = options.getOrDefault("accessColl", "accesskeys")
+    # result.auditColl = options.getOrDefault("servicecoll", "services")
+    # result.roleColl = options.getOrDefault("roleColl", "roles")
+    # result.userColl = options.getOrDefault("userColl", "users")
+    # result.auditDb = options.getOrDefault("auditDb", appDb)
+    # result.accessDb = options.getOrDefault("acessDb", appDb)
+    # result.logAll = options.getOrDefault("logAll", false)
+    # result.logRead = options.getOrDefault("logRead", false)
+    # result.logCreate = options.getOrDefault("logCreate", false)
+    # result.logUpdate= options.getOrDefault("logUpdate", false)
+    # result.logDelete = options.getOrDefault("logDelete", false)
+    # result.checkAccess = options.getOrDefault("checkAccess", true)
+    # result.skip = options.getOrDefault("skip", 0)
+    # result.limit = options.getOrDefault("limit" ,100000)
+    # result.maxQueryLimit = options.getOrDefault("maxQueryLimit", 100000)
+    # result.mcMessages = options.getOrDefault("messages", defaultTable)
+
+    # translog instance
+    result.transLog = newLog(result.auditDb, result.auditColl)
 
 proc roleServices*(accessDb: Database; userGroup: string, roleColl: string = "roles") =
     var db:Database = accessDb

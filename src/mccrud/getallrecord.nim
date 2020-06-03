@@ -16,7 +16,7 @@ import mcdb, mccache, mcresponse, mctranslog
 
 # constructor
 proc newGetAllRecord*() =
-    echo "save-constructor"
+    echo "get-all-constructor"
 
 proc getAllRecord*() =
     echo "save-record"
