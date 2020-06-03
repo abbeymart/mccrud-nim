@@ -46,17 +46,20 @@ type
         show: bool
 
     CrudParam* = ref object
-        ## actionParams = {""collName": {"fieldA": 2345, "fieldB": "abc"}}
-        ## for create and update actions
-        actionParams*: Table[string, Table[string, ValueType]]
+        collName: string
+        ## actionParams = @[{"fieldA": 2345, "fieldB": "abc"}], for create & update
+        actionParams*: seq[Table[string, ValueType]]
+        ## Read-only params =>
+        ## projectParams = @[{fieldName: "abc", show: true}] | @[] => SELECT * 
+        projectParams*: seq[ProjectParam]
+        ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},]
+        whereParams*: seq[WhereParam] 
         orderParams*: seq[string] ## @["fieldA",]
         orderType: string       ## ASC | DESC (asc | desc)
         groupParams*: seq[string] ## @["fieldA", "fieldB"]
-        ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},]
-        whereParams*: seq[WhereParam] 
-        ## projectParams = @[{fieldName: "abc", show: true}] | @[] => SELECT *
-        projectParams*: seq[ProjectParam] 
+        ## Update, Read & Delete
         docIds*: seq[string]
+        ## Shared / Commmon
         auditColl*: string
         accessColl*: string
         serviceColl*: string
