@@ -9,9 +9,10 @@
 # 
 
 import db_postgres, json, tables
-import mctranslog
+import mcdb, mccache, mcresponse, mctranslog
 
 export db_postgres, json, tables
+export mcdb, mccache, mcresponse, mctranslog
 
 # Define types
 type
@@ -22,24 +23,31 @@ type
 
     UserParam* = object
         username*: string
-        token: string
+        token*: string
 
-    QueryValue = object
-        fieldName*, fieldOp*, fieldType: string
+    # value are string type for params parsing convenience,
+    # values will be cast by fieldType, else will through ValueError exception
+    FieldValue* = object
+        fieldType: string
         fieldValue: string
-        # value are string type for params parsing convenience,
-        # values will be cast by fieldType, else will through ValueError exception
 
+    QueryFunction* = object
+        functionType: string    # MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER
+        fieldNames: seq[string]
+
+    # fieldValue(s) are string type for params parsing convenience,
+    # fieldValue(s) will be cast by fieldType, else will through ValueError exception
+    # fieldOp: >, =, >=, <, <=, BETWEEN, IN, QueryFunction etc., with matching specified params
     WhereParam* = object
         fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*: string
         order*: int
-        fieldValue*: string
-        fieldValueEnd*: string # for BETWEEN operator
-        # value are string type for params parsing convenience,
-        # values will be cast by fieldType, else will through ValueError exception
-
+        fieldValue*: string     # start value for range/BETWEEN operator
+        fieldValueEnd*: string # end value for range/BETWEEN operator
+        fieldValues*: seq[string] # values for IN operator
+       
     ProjectParam* = object
         fieldName*: string
+        fieldAlias*: string # field name alias
         show*: bool
 
     OrderParam* = object
@@ -51,19 +59,25 @@ type
         fieldNames*: seq[string]
 
     CrudParam* = ref object
-        collName*: string
+        collName*: string   # table/collection to insert or update record(s)
         ## actionParams = @[{"fieldA": 2345, "fieldB": "abc"}], for create & update
+        ## field names and corresponding values of record(s) to insert/create or update
+        ##
         actionParams*: seq[Table[string, ValueType]]
+        ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},]
+        ## the query conditions
+        ## 
+        whereParams*: seq[WhereParam]
         ## Read-only params =>
         ## projectParams = @[{fieldName: "abc", show: true}] | @[] => SELECT * 
         projectParams*: seq[ProjectParam]
         ## subQueryParams = @[{"collName": "services", }]
         subQueryParams*: seq[SubQueryParam]
         queryDistinct*: bool
-        ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},]
-        whereParams*: seq[WhereParam]
+        queryTop*: bool
+        queryFunction*: seq[QueryFunction]
         ## orderParams = @[{"fieldName": "fieldA", "orderType": "ASC"}, {"fieldName": "fieldC", "orderType": "DESC"}]
-        ## An order-param without orderType will default to ASC:
+        ## An order-param without orderType will default to ASC (ascending-order):
         ## {"fieldName": "fieldP", } => orderType = "ASC" (default)
         ## 
         orderParams*: seq[OrderParam]
@@ -122,13 +136,14 @@ type
         value*: CheckAccess
   
 # default contructor
-proc newCrud*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
+proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
     # var defaultParams = initTable[string, ValueType]()
     var defaultTable = initTable[string, ValueType]()
     
     new result
 
     result.appDb = appDb
+    result.collName = collName
     result.userInfo = userInfo
     # Create/Update
     result.actionParams = options.getOrDefault("actionParams", @[defaultTable])
@@ -139,6 +154,9 @@ proc newCrud*(appDb: Database; coll, userInfo: UserParam; options: Table[string,
     result.orderParams = options.getOrDefault("orderParams", @[])
     result.groupParams = options.getOrDefault("groupParams", @[])
     result.queryDistinct = options.getOrDefault("queryDistinct", false)
+    result.queryTop= options.getOrDefault("queryTop", false)
+    result.subQueryParams = options.getOrDefault("subQueryParams", @[])
+    result.queryFunction = options.getOrDefault("queryFunction", @[])
     result.skip = options.getOrDefault("skip", 0)
     result.limit = options.getOrDefault("limit" ,100000)
     

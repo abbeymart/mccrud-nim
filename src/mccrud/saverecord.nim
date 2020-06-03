@@ -12,10 +12,9 @@
 ## by role (access-control)
 ## 
 import crud
-import mcdb, mccache, mcresponse, mctranslog
 
 # constructor
-proc newSaveRecord*() =
+proc newSaveRecord*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]) =
     echo "save-constructor"
 
 proc saveRecord*() =

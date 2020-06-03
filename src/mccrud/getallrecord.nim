@@ -12,10 +12,9 @@
 ## 
 ## 
 import crud
-import mcdb, mccache, mcresponse, mctranslog
 
 # constructor
-proc newGetAllRecord*() =
+proc newGetAllRecord*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]) =
     echo "get-all-constructor"
 
 proc getAllRecord*() =

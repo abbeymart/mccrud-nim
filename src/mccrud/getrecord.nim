@@ -10,12 +10,11 @@
 
 ## get-record procedure is for fetching records by role (access-control)
 ## 
-## 
+##
 import crud
-import mcdb, mccache, mcresponse, mctranslog
 
 # constructor
-proc newGetRecord*() =
+proc newGetRecord*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]) =
     echo "get-record-constructor"
 
 proc getRecord*() =

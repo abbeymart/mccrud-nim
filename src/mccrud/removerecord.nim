@@ -11,12 +11,11 @@
 
 ## delete(remove)-record procedure is delete record(s) by role (access-control)
 ## 
-## 
+##
 import crud
-import mcdb, mccache, mcresponse, mctranslog
 
 # constructor
-proc newDeleteRecord*() =
+proc newDeleteRecord*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]) =
     echo "remove-constructor"
 
 proc deleteRecord*() =
