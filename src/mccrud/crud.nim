@@ -55,13 +55,14 @@ type
 
     # fieldValue(s) are string type for params parsing convenience,
     # fieldValue(s) will be cast by fieldType, else will through ValueError exception
-    # fieldOp: >, =, >=, <, <=, BETWEEN, IN, QueryFunction etc., with matching specified params
+    # fieldOp: >, =, >=, <, <=, BETWEEN, IN, ?QueryFunction(custom-rule) etc., with matching specified params
     WhereParam* = object
-        fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*: string
-        order*: int
+        fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
+        fieldOrder*, groupOrder*: int
         fieldValue*: string     # start value for range/BETWEEN operator
         fieldValueEnd*: string # end value for range/BETWEEN operator
         fieldValues*: seq[string] # values for IN operator
+
        
     CrudParam* = ref object
         collName*: string   # table/collection to insert or update record(s)
