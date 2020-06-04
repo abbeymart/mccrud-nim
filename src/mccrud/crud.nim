@@ -38,7 +38,7 @@ type
     # otherwise the only the first function-matching field will be used, as applicable
     QueryFunction* = object
         functionType: string    
-        fieldNames: seq[string] 
+        fieldNames: seq[string]
     
     ProjectParam* = object
         fieldName*: string
@@ -54,15 +54,35 @@ type
         fieldNames*: seq[string]
 
     # fieldValue(s) are string type for params parsing convenience,
-    # fieldValue(s) will be cast by fieldType, else will through ValueError exception
-    # fieldOp: >, =, >=, <, <=, BETWEEN, IN, ?QueryFunction(custom-rule) etc., with matching specified params
+    # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
+    # fieldOp: >, =, >=, <, <=, BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE etc., with matching params (fields/values)
+    # groupOp/groupLinkOp: AND | OR
+    # groupCat: user-defined, e.g. "age-policy", "demo-group"
+    # groupOrder: user-defined e.g. 1, 2...
     WhereParam* = object
         fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
         fieldOrder*, groupOrder*: int
-        fieldValue*: string     # start value for range/BETWEEN operator
-        fieldValueEnd*: string # end value for range/BETWEEN operator
-        fieldValues*: seq[string] # values for IN operator
+        fieldPreOp*: string # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
+        fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
+        fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
+        fieldValues*: seq[string] # values for IN/NOTIN operator
 
+    QueryTop* = object
+        topValue: Positive
+        topUnit: string # number or percentage (# or %)
+    
+    # TODO: combined/joined query param-type
+    JoinQueryParam* = object
+        collName*: string
+        fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
+        fieldOrder*, groupOrder*: int
+        fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
+        fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
+        fieldValues*: seq[string] # values for IN/NOTIN operator
+
+    # TODO: InsertQuery Type (bulk insert)
+    InsertQuery* = object
+        collName*: string
        
     CrudParam* = ref object
         collName*: string   # table/collection to insert or update record(s)
@@ -80,7 +100,7 @@ type
         ## subQueryParams = @[{"collName": "services", }]
         subQueryParams*: seq[SubQueryParam]
         queryDistinct*: bool
-        queryTop*: bool
+        queryTop*: QueryTop
         queryFunction*: seq[QueryFunction]
         ## orderParams = @[{"fieldName": "fieldA", "orderType": "ASC"}, {"fieldName": "fieldC", "orderType": "DESC"}]
         ## An order-param without orderType will default to ASC (ascending-order):
@@ -90,9 +110,14 @@ type
         groupParams*: seq[string] ## @["fieldA", "fieldB"]
         skip*: Positive
         limit*: Positive
-        ## Update, Read & Delete
-        docIds*: seq[string]
+        ## Combined/joined query:
+        ## 
+        joinQuery*: seq[JoinQueryParam]
+        ## Insert query 
+        ## 
+        insertQuery*: seq[InsertQuery]
         ## Shared / Commmon
+        ## 
         auditColl*: string
         accessColl*: string
         serviceColl*: string
@@ -111,7 +136,7 @@ type
         checkAccess*: bool
         transLog*: LogParam 
     
-    RoleService = object
+    RoleService* = object
         service*  : string
         group*    : string
         category* : string
@@ -120,10 +145,10 @@ type
         canUpdate*: bool
         canDelete*: bool
     
-    RoleServices = ref object
+    RoleServices* = ref object
         roleServices*: seq[RoleService]
     
-    CheckAccess = object
+    CheckAccess* = object
         userActive*: bool
         userId*: string
         isAdmin*: bool
@@ -131,7 +156,7 @@ type
         userRoles*: seq[string]
         roleServices*: seq[string]
     
-    CheckAccessResponse = ref object
+    CheckAccessResponse* = ref object
         code*: string
         message*: string
         value*: CheckAccess
