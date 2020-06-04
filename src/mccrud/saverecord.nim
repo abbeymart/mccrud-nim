@@ -24,4 +24,7 @@ proc createRecord*() =
     echo "create-record"
 
 proc updateRecord*() =
-    echo "save-record"
+    echo "update-record"
+
+proc insertIntoFromSelectRecords*() =
+    echo "insert-into-from-select-records"

@@ -5,7 +5,7 @@
 #    See the file "LICENSE.md", included in this
 #    distribution, for details a bout the copyright / license.
 # 
-##       CRUD Library - common / extendable base type/class
+##     CRUD Library - common / extendable base type/constructor
 # 
 
 import db_postgres, json, tables
@@ -71,7 +71,7 @@ type
         topValue: Positive
         topUnit: string # number or percentage (# or %)
     
-    # TODO: combined/joined query param-type
+    # TODO: combined/joined query (read) param-type
     JoinQueryParam* = object
         collName*: string
         fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
@@ -80,13 +80,12 @@ type
         fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
 
-    # TODO: InsertQuery Type (bulk insert)
-    InsertQuery* = object
-        collName*: string
-       
+    ## Shared CRUD Operation Types
+    ##    
     CrudParam* = ref object
-        collName*: string   # table/collection to insert or update record(s)
-        ## actionParams = @[{"fieldA": 2345, "fieldB": "abc"}], for create & update
+        ## collName: table/collection to insert or update record(s).
+        collName*: string   
+        ## actionParams: @[{"fieldA": 2345, "fieldB": "abc"}], for create & update
         ## field names and corresponding values of record(s) to insert/create or update
         ##
         actionParams*: seq[Table[string, ValueType]]
@@ -113,9 +112,13 @@ type
         ## Combined/joined query:
         ## 
         joinQuery*: seq[JoinQueryParam]
-        ## Insert query 
+        ## Bulk Insert Operation 
+        ## insertToParams for collName: @["fieldA", "fieldB"]
+        insertIntoParams*: seq[string]
+        ## {"toCollName": {"collName": @["fieldA1", "fieldB1"]}
+        ## the order and types of insertIntoParams' & selectFromParams' fields must match, otherwise ValueError exception will occur
         ## 
-        insertQuery*: seq[InsertQuery]
+        selectFromParams*: seq[Table[string, seq[string]]]
         ## Shared / Commmon
         ## 
         auditColl*: string
