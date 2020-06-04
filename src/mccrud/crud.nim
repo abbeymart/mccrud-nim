@@ -5,7 +5,7 @@
 #    See the file "LICENSE.md", included in this
 #    distribution, for details a bout the copyright / license.
 # 
-##        CRUD Library - common / extendable base type/class
+##       CRUD Library - common / extendable base type/class
 # 
 
 import db_postgres, json, tables
@@ -22,7 +22,9 @@ type
     ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | SqlQuery | Database
 
     UserParam* = object
+        uid*: string
         username*: string
+        email*: string
         token*: string
 
     # value are string type for params parsing convenience,
@@ -31,9 +33,25 @@ type
         fieldType: string
         fieldValue: string
 
+    # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER
+    # fieldNames => specify one field for all except custom/user function, 
+    # otherwise the only the first function-matching field will be used, as applicable
     QueryFunction* = object
-        functionType: string    # MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER
-        fieldNames: seq[string]
+        functionType: string    
+        fieldNames: seq[string] 
+    
+    ProjectParam* = object
+        fieldName*: string
+        fieldAlias*: string # field name alias
+        show*: bool         # for mongoDB, ignore for Postgres, MySQL & SQLite
+
+    OrderParam* = object
+        fieldName*: string
+        orderType*: string   # ASC | DESC (asc | desc)
+
+    SubQueryParam* = object
+        collName*: string
+        fieldNames*: seq[string]
 
     # fieldValue(s) are string type for params parsing convenience,
     # fieldValue(s) will be cast by fieldType, else will through ValueError exception
@@ -45,19 +63,6 @@ type
         fieldValueEnd*: string # end value for range/BETWEEN operator
         fieldValues*: seq[string] # values for IN operator
        
-    ProjectParam* = object
-        fieldName*: string
-        fieldAlias*: string # field name alias
-        show*: bool
-
-    OrderParam* = object
-        fieldName*: string
-        orderType*: string   # ASC | DESC (asc | desc)
-
-    SubQueryParam* = object
-        collName*: string
-        fieldNames*: seq[string]
-
     CrudParam* = ref object
         collName*: string   # table/collection to insert or update record(s)
         ## actionParams = @[{"fieldA": 2345, "fieldB": "abc"}], for create & update
@@ -101,16 +106,11 @@ type
         logUpdate*: bool
         logDelete*: bool
         mcMessages*: Table[string, string]
-        userInfo: UserParam
-        checkAccess: bool
-        transLog: LogParam 
-      
-    RequiredParam* = object
         userInfo*: UserParam
-        token*: string
-        coll*: seq[string]
+        checkAccess*: bool
+        transLog*: LogParam 
     
-    RoleService* = object
+    RoleService = object
         service*  : string
         group*    : string
         category* : string
@@ -119,10 +119,10 @@ type
         canUpdate*: bool
         canDelete*: bool
     
-    RoleServices* = ref object
+    RoleServices = ref object
         roleServices*: seq[RoleService]
     
-    CheckAccess* = object
+    CheckAccess = object
         userActive*: bool
         userId*: string
         isAdmin*: bool
@@ -130,7 +130,7 @@ type
         userRoles*: seq[string]
         roleServices*: seq[string]
     
-    CheckAccessResponse* = ref object
+    CheckAccessResponse = ref object
         code*: string
         message*: string
         value*: CheckAccess
