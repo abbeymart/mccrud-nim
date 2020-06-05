@@ -45,10 +45,6 @@ type
         fieldAlias*: string # field name alias
         show*: bool         # for mongoDB, ignore for Postgres, MySQL & SQLite
 
-    OrderParam* = object
-        fieldName*: string
-        orderType*: string   # ASC | DESC (asc | desc)
-
     SubQueryParam* = object
         collName*: string
         fieldNames*: seq[string]
@@ -99,10 +95,11 @@ type
         ## Read-only params =>
         ## projectParams = @[{fieldName: "abc", show: true}] | @[] => SELECT * 
         projectParams*: seq[ProjectParam]
-        ## subQueryParams = @[{"collName": "services", }]
+        ## TODO: subQueryParams = @[{"collName": "services", }]
         subQueryParams*: seq[SubQueryParam]
         queryDistinct*: bool
         queryTop*: QueryTop
+        # TODO: query function
         queryFunction*: seq[QueryFunction]
         ## orderParams = {"fieldA": "ASC", "fieldC": "DESC"}
         ## An order-param without orderType will default to ASC (ascending-order):
@@ -114,7 +111,7 @@ type
         limit*: Positive
         ## TODO: Combined/joined query:
         ## 
-        joinQuery*: seq[JoinQueryParam]
+        joinQueryParams*: seq[JoinQueryParam]
         ## Bulk Insert Operation 
         ## insertToParams for collName: @["fieldA", "fieldB"]
         insertIntoParams*: seq[string]
@@ -178,21 +175,21 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     result.userInfo = userInfo
     # Create/Update
     result.actionParams = options.getOrDefault("actionParams", @[defaultTable])
-    
+    result.insertIntoParams = options.getOrDefault("insertIntoParams", @[])
+    result.selectFromParams = options.getOrDefault("selectFromParams", @[])
+
     # Read
     result.projectParams = options.getOrDefault("projectParams", @[ProjectParam()])
     result.whereParams = options.getOrDefault("whereParams", @[WhereParam()])
     result.orderParams = options.getOrDefault("orderParams", defaultTable)
     result.groupParams = options.getOrDefault("groupParams", @[])
     result.queryDistinct = options.getOrDefault("queryDistinct", false)
-    result.queryTop= options.getOrDefault("queryTop", false)
+    result.queryTop= options.getOrDefault("queryTop", QueryTop())
+    result.joinQueryParams = options.getOrDefault("joinQueryParams", @[])
     result.subQueryParams = options.getOrDefault("subQueryParams", @[])
     result.queryFunction = options.getOrDefault("queryFunction", @[])
     result.skip = options.getOrDefault("skip", 0)
     result.limit = options.getOrDefault("limit" ,100000)
-    
-    # Read, Update & Delete
-    result.docIds = options.getOrDefault("docIds", @[])
 
     # Shared
     result.auditColl = options.getOrDefault("auditColl", "audits")
