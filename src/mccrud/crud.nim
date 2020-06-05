@@ -32,9 +32,20 @@ type
     FieldInfo = object
         fieldName*: string
         fieldType*: string
+        fieldFunction*: string # COUNT...
+        fieldOp*: string # field operators: "=", ">", ">=", "<", "<=",...
         fieldValue*: string
         fieldAlias*: string
-        show*: bool         # for mongoDB, ignore for Postgres, MySQL & SQLite
+        show*: bool     # for mongoDB, ignore for Postgres, MySQL & SQLite
+
+    CaseParam = object
+        condition*: seq[FieldInfo]
+        responseMessage*: string
+        responseField*: string  # for ORDER BY options
+        defaultField*: string   # for ORDER BY options
+        defaultMessage*: string
+        orderBy*: bool
+        asField*: string
 
     # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER defined
     # fieldNames => specify one field for all except custom/user function, 
@@ -53,8 +64,15 @@ type
 
     InsertIntoParam* = object
         collName*: string
-        fieldNames: seq[string]
+        fieldNames*: seq[string]
     
+    SelectIntoParam* = object
+        selectFields*: seq[string] # @[] => SELECT *
+        intoColl*: string          # new table/collection
+        fromColl*: string          # old/external table/collection
+        fromFilename*: string      # IN external DB file, e.g. backup.mdb
+        whereParam*: WhereParam
+        joinParam*: JoinQueryParam # for copying from more than one table/collection
 
     # fieldValue(s) are string type for params parsing convenience,
     # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
@@ -87,17 +105,19 @@ type
         queryFunction*: QueryFunction
         orderType*: string # "ASC" ("asc") | "DESC" ("desc")
 
+    SubQueryParam* = object
+        whereType*: string   # EXISTS, ANY, ALL
+        whereField*: string  # for ANY / ALL | Must match the fieldName in queryParam
+        whereOp*: string     # for ANY / ALL
+        queryParams*: QueryParam
+        whereParams*: WhereParam
+
     # TODO: combined/joined query (read) param-type
     JoinQueryParam* = object
         joinColl*: string
         onColl: string
+        joinType*: string # INNER, OUTER, LEFT, RIGHT, FULL, SELF...
         joinFields : seq[Table[string, string]] # [{"joinField": "onField"},...]
-        fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
-        fieldOrder*, groupOrder*: int
-        fieldPreOp*: string # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
-        fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
-        fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
-        fieldValues*: seq[string] # values for IN/NOTIN operator
     
     ## Shared CRUD Operation Types
     ##    
@@ -119,6 +139,7 @@ type
         ## the order and types of insertIntoParams' & selectFromParams' fields must match, otherwise ValueError exception will occur
         ## 
         selectFromParams*: seq[SelectFromParam]
+        selectIntoParams*: SelectIntoParam
         ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},].
         ## The query conditions:
         ## 
@@ -126,6 +147,7 @@ type
         ## Read-only params =>
         ## queryParams = @[{collName: "abc", fieldInfo: {fieldName: "abc", show: true}}] | @[] => SELECT * 
         queryParams*: seq[QueryParam]
+        subQueryParams*: SubQueryParam
         ## TODO: Combined/joined query:
         ## 
         joinQueryParams*: seq[JoinQueryParam]
@@ -140,6 +162,7 @@ type
         orderParams*: seq[OrderParam]
         groupParams*: seq[string] ## @["fieldA", "fieldB"]
         havingParams*: HavingParam
+        caseParams*: CaseParam 
         skip*: Positive
         limit*: Positive
         ## Shared / Commmon
