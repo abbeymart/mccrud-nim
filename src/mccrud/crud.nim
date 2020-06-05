@@ -76,7 +76,8 @@ type
         collName*: string
         fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
         fieldOrder*, groupOrder*: int
-        fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
+        # fieldValue start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
+        fieldValue*: string     # 
         fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
 
@@ -168,8 +169,7 @@ type
   
 # default contructor
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
-    # var defaultParams = initTable[string, ValueType]()
-    var defaultTable = initTable[string, ValueType]()
+    var defaultTable = initTable[string, string]()
     
     new result
 
@@ -182,7 +182,7 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     # Read
     result.projectParams = options.getOrDefault("projectParams", @[ProjectParam()])
     result.whereParams = options.getOrDefault("whereParams", @[WhereParam()])
-    result.orderParams = options.getOrDefault("orderParams", @[])
+    result.orderParams = options.getOrDefault("orderParams", defaultTable)
     result.groupParams = options.getOrDefault("groupParams", @[])
     result.queryDistinct = options.getOrDefault("queryDistinct", false)
     result.queryTop= options.getOrDefault("queryTop", false)
