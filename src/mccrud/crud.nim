@@ -28,26 +28,33 @@ type
         token*: string
 
     # value are string type for params parsing convenience,
-    # values will be cast by fieldType, else will through ValueError exception
-    FieldValue* = object
-        fieldType: string
-        fieldValue: string
+    # values will be cast by fieldType, else will throw ValueError exception
+    FieldInfo = object
+        fieldName*: string
+        fieldType*: string
+        fieldValue*: string
+        fieldAlias*: string
+        show*: bool         # for mongoDB, ignore for Postgres, MySQL & SQLite
 
     # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER defined
     # fieldNames => specify one field for all except custom/user function, 
     # otherwise the only the first function-matching field will be used, as applicable
     QueryFunction* = object
-        functionType: string    
+        functionType*: string
+        fieldInfo*: seq[FieldInfo]
+        
+    QueryParam* = object
+        collName: string    # default: "" => will use collName instead
+        fieldInfo: seq[FieldInfo]
+
+    SelectFromParam* = object
+        collName*: string
+        fieldNames: seq[string]
+
+    InsertIntoParam* = object
+        collName*: string
         fieldNames: seq[string]
     
-    ProjectParam* = object
-        fieldName*: string
-        fieldAlias*: string # field name alias
-        show*: bool         # for mongoDB, ignore for Postgres, MySQL & SQLite
-
-    SubQueryParam* = object
-        collName*: string
-        fieldNames*: seq[string]
 
     # fieldValue(s) are string type for params parsing convenience,
     # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
@@ -63,12 +70,28 @@ type
         fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
 
-    QueryTop* = object
+    QueryTop* = object          
         topValue: Positive
         topUnit: string # number or percentage (# or %)
     
+    OrderParam* = object
+        collName: string
+        fieldName*: string
+        queryFunction*: QueryFunction
+        fieldOrderType*: string # "ASC" ("asc") | "DESC" ("desc")
+        functionOrderType*: string
+
+    # for aggregate query condition
+    HavingParam* = object
+        collName: string
+        queryFunction*: QueryFunction
+        orderType*: string # "ASC" ("asc") | "DESC" ("desc")
+
     # TODO: combined/joined query (read) param-type
-    JoinWhereParam* = object
+    JoinQueryParam* = object
+        joinColl*: string
+        onColl: string
+        joinFields : seq[Table[string, string]] # [{"joinField": "onField"},...]
         fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
         fieldOrder*, groupOrder*: int
         fieldPreOp*: string # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
@@ -76,15 +99,6 @@ type
         fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
     
-    JoinQueryParam* = object
-        collName*: string
-        fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
-        fieldOrder*, groupOrder*: int
-        # fieldValue start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
-        fieldValue*: string     # 
-        fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
-        fieldValues*: seq[string] # values for IN/NOTIN operator
-
     ## Shared CRUD Operation Types
     ##    
     CrudParam* = ref object
@@ -96,15 +110,22 @@ type
         ## ValueError exception will be raised for invalid value/data type 
         ##
         actionParams*: seq[Table[string, ValueType]]
+        ## Bulk Insert Operation: 
+        ## insertToParams {collName: "abc", fieldNames: @["field1", "field2"]}
+        ## For collName: "" will use the default constructor collName
+        insertIntoParams*: seq[InsertIntoParam]
+        ## selectFromParams =
+        ## {collName: "abc", fieldNames: @["field1", "field2"]}
+        ## the order and types of insertIntoParams' & selectFromParams' fields must match, otherwise ValueError exception will occur
+        ## 
+        selectFromParams*: seq[SelectFromParam]
         ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},].
         ## The query conditions:
         ## 
         whereParams*: seq[WhereParam]
         ## Read-only params =>
-        ## projectParams = @[{fieldName: "abc", show: true}] | @[] => SELECT * 
-        projectParams*: seq[ProjectParam]
-        ## TODO: subQueryParams = @[{"collName": "services", }] => joinQueryParams
-        subQueryParams*: seq[SubQueryParam]
+        ## queryParams = @[{collName: "abc", fieldInfo: {fieldName: "abc", show: true}}] | @[] => SELECT * 
+        queryParams*: seq[QueryParam]
         ## TODO: Combined/joined query:
         ## 
         joinQueryParams*: seq[JoinQueryParam]
@@ -116,17 +137,11 @@ type
         ## An order-param without orderType will default to ASC (ascending-order):
         ## {"fieldP": "" } => orderType = "ASC" (default)
         ## 
-        orderParams*: Table[string, string]
+        orderParams*: seq[OrderParam]
         groupParams*: seq[string] ## @["fieldA", "fieldB"]
+        havingParams*: HavingParam
         skip*: Positive
         limit*: Positive
-        ## Bulk Insert Operation 
-        ## insertToParams for collName: @["fieldA", "fieldB"]
-        insertIntoParams*: seq[string]
-        ## {"toCollName": {"collName": @["fieldA1", "fieldB1"]}
-        ## the order and types of insertIntoParams' & selectFromParams' fields must match, otherwise ValueError exception will occur
-        ## 
-        selectFromParams*: seq[Table[string, seq[string]]]
         ## Shared / Commmon
         ## 
         auditColl*: string
@@ -174,7 +189,7 @@ type
   
 # default contructor
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
-    var defaultTable = initTable[string, string]()
+    var defaultTable = initTable[string, JsonNode]()
     
     new result
 
@@ -187,15 +202,14 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     result.selectFromParams = options.getOrDefault("selectFromParams", @[])
 
     # Read
-    result.projectParams = options.getOrDefault("projectParams", @[ProjectParam()])
+    result.queryParams = options.getOrDefault("queryParams", @[QueryParam()])
+    result.queryFunction = options.getOrDefault("queryFunction", @[])
     result.whereParams = options.getOrDefault("whereParams", @[WhereParam()])
     result.orderParams = options.getOrDefault("orderParams", defaultTable)
     result.groupParams = options.getOrDefault("groupParams", @[])
     result.queryDistinct = options.getOrDefault("queryDistinct", false)
     result.queryTop= options.getOrDefault("queryTop", QueryTop())
     result.joinQueryParams = options.getOrDefault("joinQueryParams", @[])
-    result.subQueryParams = options.getOrDefault("subQueryParams", @[])
-    result.queryFunction = options.getOrDefault("queryFunction", @[])
     result.skip = options.getOrDefault("skip", 0)
     result.limit = options.getOrDefault("limit" ,100000)
 
