@@ -33,7 +33,7 @@ type
         fieldType: string
         fieldValue: string
 
-    # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER
+    # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER defined
     # fieldNames => specify one field for all except custom/user function, 
     # otherwise the only the first function-matching field will be used, as applicable
     QueryFunction* = object
@@ -85,12 +85,14 @@ type
     CrudParam* = ref object
         ## collName: table/collection to insert or update record(s).
         collName*: string   
-        ## actionParams: @[{"fieldA": 2345, "fieldB": "abc"}], for create & update
-        ## field names and corresponding values of record(s) to insert/create or update
+        ## actionParams: @[{"fieldA": 2345, "fieldB": "abc"}], for create & update.
+        ## Field names and corresponding values of record(s) to insert/create or update.
+        ## Field-values will be validated based on data model definition.
+        ## ValueError exception will be raised for invalid value/data type 
         ##
         actionParams*: seq[Table[string, ValueType]]
-        ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},]
-        ## the query conditions
+        ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},].
+        ## The query conditions:
         ## 
         whereParams*: seq[WhereParam]
         ## Read-only params =>
@@ -101,15 +103,15 @@ type
         queryDistinct*: bool
         queryTop*: QueryTop
         queryFunction*: seq[QueryFunction]
-        ## orderParams = @[{"fieldName": "fieldA", "orderType": "ASC"}, {"fieldName": "fieldC", "orderType": "DESC"}]
+        ## orderParams = {"fieldA": "ASC", "fieldC": "DESC"}
         ## An order-param without orderType will default to ASC (ascending-order):
-        ## {"fieldName": "fieldP", } => orderType = "ASC" (default)
+        ## {"fieldP": "" } => orderType = "ASC" (default)
         ## 
-        orderParams*: seq[OrderParam]
+        orderParams*: Table[string, string]
         groupParams*: seq[string] ## @["fieldA", "fieldB"]
         skip*: Positive
         limit*: Positive
-        ## Combined/joined query:
+        ## TODO: Combined/joined query:
         ## 
         joinQuery*: seq[JoinQueryParam]
         ## Bulk Insert Operation 
