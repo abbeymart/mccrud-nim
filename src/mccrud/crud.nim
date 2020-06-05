@@ -68,6 +68,14 @@ type
         topUnit: string # number or percentage (# or %)
     
     # TODO: combined/joined query (read) param-type
+    JoinWhereParam* = object
+        fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
+        fieldOrder*, groupOrder*: int
+        fieldPreOp*: string # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
+        fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
+        fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
+        fieldValues*: seq[string] # values for IN/NOTIN operator
+    
     JoinQueryParam* = object
         collName*: string
         fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
