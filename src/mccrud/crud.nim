@@ -95,8 +95,11 @@ type
         ## Read-only params =>
         ## projectParams = @[{fieldName: "abc", show: true}] | @[] => SELECT * 
         projectParams*: seq[ProjectParam]
-        ## TODO: subQueryParams = @[{"collName": "services", }]
+        ## TODO: subQueryParams = @[{"collName": "services", }] => joinQueryParams
         subQueryParams*: seq[SubQueryParam]
+        ## TODO: Combined/joined query:
+        ## 
+        joinQueryParams*: seq[JoinQueryParam]
         queryDistinct*: bool
         queryTop*: QueryTop
         # TODO: query function
@@ -109,9 +112,6 @@ type
         groupParams*: seq[string] ## @["fieldA", "fieldB"]
         skip*: Positive
         limit*: Positive
-        ## TODO: Combined/joined query:
-        ## 
-        joinQueryParams*: seq[JoinQueryParam]
         ## Bulk Insert Operation 
         ## insertToParams for collName: @["fieldA", "fieldB"]
         insertIntoParams*: seq[string]
