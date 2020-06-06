@@ -80,13 +80,15 @@ type
     # groupOp/groupLinkOp: AND | OR
     # groupCat: user-defined, e.g. "age-policy", "demo-group"
     # groupOrder: user-defined e.g. 1, 2...
-    WhereParam* = object
+    WhereParam* = ref object
         fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
         fieldOrder*, groupOrder*: int
         fieldPreOp*: string # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
         fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
         fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
+        fieldPostOp*: string # ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
+        # anyAllQueryParams*: SubQueryParam
 
     QueryTop* = object          
         topValue: Positive
@@ -104,13 +106,15 @@ type
         collName: string
         queryFunction*: QueryFunction
         orderType*: string # "ASC" ("asc") | "DESC" ("desc")
+        fieldPostOp*: string # ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
+        anyAllQueryParams*: seq[QueryParam]
 
     SubQueryParam* = object
         whereType*: string   # EXISTS, ANY, ALL
         whereField*: string  # for ANY / ALL | Must match the fieldName in queryParam
-        whereOp*: string     # for ANY / ALL
+        whereOp*: string     # e.g. "=" for ANY / ALL
         queryParams*: QueryParam
-        whereParams*: WhereParam
+        queryWhereParams*: WhereParam
 
     # TODO: combined/joined query (read) param-type
     JoinSelectField* =  object
@@ -136,6 +140,7 @@ type
         selectQueryParams*: seq[QueryParam]
         existQueryParams*: seq[QueryParam]
         whereParams*: seq[WhereParam]
+
 
     ## Shared CRUD Operation Types
     ##    
