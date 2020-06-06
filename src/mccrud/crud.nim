@@ -87,8 +87,7 @@ type
         fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
         fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
-        fieldPostOp*: string # ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
-        # anyAllQueryParams*: SubQueryParam
+        # fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
 
     QueryTop* = object          
         topValue: Positive
@@ -105,9 +104,9 @@ type
     HavingParam* = object
         collName: string
         queryFunction*: QueryFunction
+        queryFieldOpValue*:  seq[WhereParam]
         orderType*: string # "ASC" ("asc") | "DESC" ("desc")
-        fieldPostOp*: string # ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
-        anyAllQueryParams*: seq[QueryParam]
+        subQueryParams*: SubQueryParam # for ANY, ALL, EXISTS...
 
     SubQueryParam* = object
         whereType*: string   # EXISTS, ANY, ALL
@@ -136,11 +135,10 @@ type
         whereParams*: seq[WhereParam]
         orderParams*: seq[OrderParam]
 
-    ExistQueryParam* = object
-        selectQueryParams*: seq[QueryParam]
-        existQueryParams*: seq[QueryParam]
-        whereParams*: seq[WhereParam]
-
+    # ExistQueryParam = object
+    #     selectQueryParams*: seq[QueryParam]
+    #     existQueryParams*: seq[QueryParam]
+    #     whereParams*: seq[WhereParam]
 
     ## Shared CRUD Operation Types
     ##    
@@ -175,7 +173,7 @@ type
         ## 
         joinQueryParams*: seq[JoinQueryParam]
         unionQueryParams*: seq[UnionQueryParam]
-        existQueryParams*: seq[ExistQueryParam]
+        # existQueryParams*: seq[SubQueryParam] # => subQueryParams
         queryDistinct*: bool
         queryTop*: QueryTop
         # TODO: query function
