@@ -132,6 +132,11 @@ type
         whereParams*: seq[WhereParam]
         orderParams*: seq[OrderParam]
 
+    ExistQueryParam* = object
+        selectQueryParams*: seq[QueryParam]
+        existQueryParams*: seq[QueryParam]
+        whereParams*: seq[WhereParam]
+
     ## Shared CRUD Operation Types
     ##    
     CrudParam* = ref object
@@ -165,6 +170,7 @@ type
         ## 
         joinQueryParams*: seq[JoinQueryParam]
         unionQueryParams*: seq[UnionQueryParam]
+        existQueryParams*: seq[ExistQueryParam]
         queryDistinct*: bool
         queryTop*: QueryTop
         # TODO: query function
