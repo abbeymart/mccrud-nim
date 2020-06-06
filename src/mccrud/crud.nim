@@ -113,11 +113,16 @@ type
         whereParams*: WhereParam
 
     # TODO: combined/joined query (read) param-type
+    JoinSelectField* =  object
+        collName: string
+        collFields*: seq[FieldInfo]
+
     JoinQueryParam* = object
+        selectFromColl*: string # default to collName
+        selectFields*: seq[JoinSelectField]
         joinColl*: string
-        onColl: string
-        joinType*: string # INNER, OUTER, LEFT, RIGHT, FULL, SELF...
-        joinFields : seq[Table[string, string]] # [{"joinField": "onField"},...]
+        joinType*: string # INNER (JOIN), OUTER (LEFT, RIGHT & FULL), SELF...
+        joinFields*: seq[Table[string, string]] # [{"joinField": "onField"},...]
     
     ## Shared CRUD Operation Types
     ##    
