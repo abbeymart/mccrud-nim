@@ -116,14 +116,22 @@ type
     JoinSelectField* =  object
         collName: string
         collFields*: seq[FieldInfo]
+    
+    JoinField* = object
+        collName: string
+        joinField*: string
 
     JoinQueryParam* = object
         selectFromColl*: string # default to collName
         selectFields*: seq[JoinSelectField]
-        joinColl*: string
         joinType*: string # INNER (JOIN), OUTER (LEFT, RIGHT & FULL), SELF...
-        joinFields*: seq[Table[string, string]] # [{"joinField": "onField"},...]
+        joinFields*: seq[JoinField] # [{collName: "abc", joinField: "field1" },]
     
+    UnionQueryParam* = object
+        selectQueryParams*: seq[QueryParam]
+        whereParams*: seq[WhereParam]
+        orderParams*: seq[OrderParam]
+
     ## Shared CRUD Operation Types
     ##    
     CrudParam* = ref object
@@ -156,6 +164,7 @@ type
         ## TODO: Combined/joined query:
         ## 
         joinQueryParams*: seq[JoinQueryParam]
+        unionQueryParams*: seq[UnionQueryParam]
         queryDistinct*: bool
         queryTop*: QueryTop
         # TODO: query function
