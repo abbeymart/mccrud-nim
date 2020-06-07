@@ -16,6 +16,9 @@ import crud
 # constructor
 proc newGetRecord*(appDb: Database; collName: string; userInfo: UserParam; actionParams: JsonNode; options: Table[string, ValueType]) =
     echo "get-record-constructor"
+    #  include actionParams in options/option-params
+    options["actionParams"] = actionParams
+    newCrud(appDb, collName, userInfo, options )
 
 proc getRecord*() =
     echo "get-record-record"

@@ -137,10 +137,10 @@ type
         whereParams*: seq[WhereParam]
         orderParams*: seq[OrderParam]
 
-    # ExistQueryParam = object
-    #     selectQueryParams*: seq[QueryParam]
-    #     existQueryParams*: seq[QueryParam]
-    #     whereParams*: seq[WhereParam]
+    GetRecordParam* = object
+        queryBy*: string # "id" or "param"
+        queryIds: seq[string]
+        queryParams: seq[QueryParam]
 
     ## Shared CRUD Operation Types
     ##    
@@ -291,8 +291,8 @@ proc checkAccess*(accessDb: Database, options: UserParam): UserParam =
     echo db.repr
     result = UserParam()
 
-proc getCurrentRecord*() =
+proc getCurrentRecord*(appDb: Database; collName: string; getRecordParams: GetRecordParam) =
     echo "save-record"
 
-proc taskPermitted*() =
+proc taskPermitted*(appDb: Database; collName: string; getRecordParams: GetRecordParam) =
     echo "save-record"
