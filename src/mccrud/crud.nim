@@ -300,9 +300,19 @@ proc checkAccess*(accessDb: Database, userInfo: UserParam): UserParam =
     echo db.repr
     result = UserParam()
 
-proc getCurrentRecord*(appDb: Database; collName: string; whereParams: WhereParam) =
+proc getCurrentRecord*(appDb: Database; collName: string; whereParams: WhereParam): ResponseMessage =
     echo "get-record"
+    var response  = ResponseMessage(value: nil,
+                                    message: "records retrieved successfuly",
+                                    code: "success"
+                    )
+    result = getResMessage("success", response)
 
-proc taskPermitted*(appDb: Database; collName: string; recordIds: seq[string]; userInfo: UserParam) =
+proc taskPermitted*(appDb: Database; collName: string; recordIds: seq[string]; userInfo: UserParam): ResponseMessage =
     # permit task(crud), by owner, role or admin only => on coll/table or doc/record(s)
     echo "task-permission"
+    var response  = ResponseMessage(value: nil,
+                                    message: "records retrieved successfuly",
+                                    code: "success"
+                    )
+    result = getResMessage("success", response)
