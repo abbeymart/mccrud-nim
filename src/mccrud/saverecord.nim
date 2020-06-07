@@ -14,8 +14,11 @@
 import crud
 
 # constructor
-proc newSaveRecord*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]) =
+proc newSaveRecord*(appDb: Database; collName: string; userInfo: UserParam; actionParams: JsonNode; options: Table[string, ValueType]) =
     echo "save-constructor"
+    #  include actionParams in options/option-params
+    options["actionParams"] = actionParams
+    newCrud(appDb, collName, userInfo, options )
 
 proc saveRecord*() =
     echo "save-record"

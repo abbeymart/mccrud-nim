@@ -14,7 +14,7 @@
 import crud
 
 # constructor
-proc newGetRecord*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]) =
+proc newGetRecord*(appDb: Database; collName: string; userInfo: UserParam; actionParams: JsonNode; options: Table[string, ValueType]) =
     echo "get-record-constructor"
 
 proc getRecord*() =

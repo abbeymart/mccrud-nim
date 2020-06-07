@@ -19,7 +19,7 @@ type
     Database = ref object
         db: DbConn
          
-    ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | SqlQuery | Database
+    ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database
 
     UserParam* = object
         uid*: string
@@ -48,7 +48,8 @@ type
         asField*: string
 
     # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER defined
-    # fieldNames => specify one field for all except custom/user function, 
+    # fieldNames => specify one field for all except custom/user function,
+    # the fieldType must match the argument types expected by the functionType 
     # otherwise the only the first function-matching field will be used, as applicable
     QueryFunction* = object
         functionType*: string
@@ -104,9 +105,10 @@ type
     HavingParam* = object
         collName: string
         queryFunction*: QueryFunction
-        queryFieldOpValue*:  seq[WhereParam]
+        queryOp*: string
+        queryOpValue*: string # value will be cast to fieldType in queryFunction
         orderType*: string # "ASC" ("asc") | "DESC" ("desc")
-        subQueryParams*: SubQueryParam # for ANY, ALL, EXISTS...
+        # subQueryParams*: SubQueryParam # for ANY, ALL, EXISTS...
 
     SubQueryParam* = object
         whereType*: string   # EXISTS, ANY, ALL
@@ -169,14 +171,14 @@ type
         ## queryParams = @[{collName: "abc", fieldInfo: {fieldName: "abc", show: true}}] | @[] => SELECT * 
         queryParams*: seq[QueryParam]
         subQueryParams*: SubQueryParam
-        ## TODO: Combined/joined query:
+        ## Combined/joined query:
         ## 
         joinQueryParams*: seq[JoinQueryParam]
         unionQueryParams*: seq[UnionQueryParam]
         # existQueryParams*: seq[SubQueryParam] # => subQueryParams
         queryDistinct*: bool
         queryTop*: QueryTop
-        # TODO: query function
+        # Query function
         queryFunction*: seq[QueryFunction]
         ## orderParams = {"fieldA": "ASC", "fieldC": "DESC"}
         ## An order-param without orderType will default to ASC (ascending-order):

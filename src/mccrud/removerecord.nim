@@ -15,7 +15,7 @@
 import crud
 
 # constructor
-proc newDeleteRecord*(appDb: Database; coll, userInfo: UserParam; options: Table[string, ValueType]) =
+proc newDeleteRecord*(appDb: Database; collName: string; userInfo: UserParam; actionParams: JsonNode; options: Table[string, ValueType]) =
     echo "remove-constructor"
 
 proc deleteRecord*() =
