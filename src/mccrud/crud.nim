@@ -43,7 +43,7 @@ type
         resultMessage*: string
         resultField*: string  # for ORDER BY options
 
-    CaseParam* = object
+    CaseQueryParam* = object
         conditions*: seq[CaseCondition]
         defaultField*: string   # for ORDER BY options
         defaultMessage*: string 
@@ -106,7 +106,7 @@ type
         orderType*: string # "ASC" ("asc") | "DESC" ("desc")
         # subQueryParams*: SubQueryParam # for ANY, ALL, EXISTS...
 
-    SubQueryParam* = ref object
+    SubQueryParam* = object
         whereType*: string   # EXISTS, ANY, ALL
         whereField*: string  # for ANY / ALL | Must match the fieldName in queryParam
         whereOp*: string     # e.g. "=" for ANY / ALL
@@ -115,11 +115,11 @@ type
 
     # combined/joined query (read) param-type
     JoinSelectField* =  object
-        collName: string
+        collName*: string
         collFields*: seq[FieldInfo]
     
     JoinField* = object
-        collName: string
+        collName*: string
         joinField*: string
 
     JoinQueryParam* = object
@@ -142,10 +142,10 @@ type
         whereParams*: seq[WhereParam]
         orderParams*: seq[OrderParam]
 
-    GetRecordParam* = object
+    GetRecordParam = object
         queryBy*: string # "uid" or "param"
-        queryIds: seq[string]
-        queryParams: seq[QueryParam]
+        queryIds*: seq[string]
+        queryParams*: seq[QueryParam]
 
     ## Shared CRUD Operation Types
     ##    
@@ -167,7 +167,7 @@ type
         ## the order and types of insertIntoParams' & selectFromParams' fields must match, otherwise ValueError exception will occur
         ## 
         selectFromParams*: seq[SelectFromParam]
-        selectIntoParams*: SelectIntoParam
+        selectIntoParams*: seq[SelectIntoParam]
         ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},].
         ## The query conditions:
         ## 
@@ -191,8 +191,8 @@ type
         ## 
         orderParams*: seq[OrderParam]
         groupParams*: seq[string] ## @["fieldA", "fieldB"]
-        havingParams*: HavingParam
-        caseParams*: CaseParam 
+        havingParams*: seq[HavingParam]
+        caseParams*: seq[CaseQueryParam] 
         skip*: Positive
         limit*: Positive
         ## Shared / Commmon
@@ -253,16 +253,20 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     result.actionParams = options.getOrDefault("actionParams", @[defaultTable])
     result.insertIntoParams = options.getOrDefault("insertIntoParams", @[])
     result.selectFromParams = options.getOrDefault("selectFromParams", @[])
+    result.selectIntoParams = options.getOrDefault("selectIntoParams", @[])
 
     # Read
-    result.queryParams = options.getOrDefault("queryParams", @[QueryParam()])
+    result.queryParams = options.getOrDefault("queryParams", @[])
     result.queryFunction = options.getOrDefault("queryFunction", @[])
-    result.whereParams = options.getOrDefault("whereParams", @[WhereParam()])
-    result.orderParams = options.getOrDefault("orderParams", defaultTable)
+    result.whereParams = options.getOrDefault("whereParams", @[])
+    result.orderParams = options.getOrDefault("orderParams", @[])
     result.groupParams = options.getOrDefault("groupParams", @[])
+    result.havingParams = options.getOrDefault("havingParams", @[])
     result.queryDistinct = options.getOrDefault("queryDistinct", false)
     result.queryTop= options.getOrDefault("queryTop", QueryTop())
     result.joinQueryParams = options.getOrDefault("joinQueryParams", @[])
+    result.unionQueryParams = options.getOrDefault("unionQueryParams", @[])
+    result.caseQueryParams = options.getOrDefault("caseQueryParams", @[])
     result.skip = options.getOrDefault("skip", 0)
     result.limit = options.getOrDefault("limit" ,100000)
 
@@ -291,13 +295,14 @@ proc roleServices*(accessDb: Database; userGroup: string; roleColl: string = "ro
     var db:Database = accessDb
     echo db.repr
 
-proc checkAccess*(accessDb: Database, options: UserParam): UserParam =
+proc checkAccess*(accessDb: Database, userInfo: UserParam): UserParam =
     var db:Database = accessDb
     echo db.repr
     result = UserParam()
 
 proc getCurrentRecord*(appDb: Database; collName: string; whereParams: WhereParam) =
-    echo "save-record"
+    echo "get-record"
 
-proc taskPermitted*(appDb: Database; collName: string) =
-    echo "save-record"
+proc taskPermitted*(appDb: Database; collName: string; recordIds: seq[string]; userInfo: UserParam) =
+    # permit task(crud), by owner, role or admin only => on coll/table or doc/record(s)
+    echo "task-permission"
