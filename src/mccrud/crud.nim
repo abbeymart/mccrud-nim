@@ -1,11 +1,11 @@
 #
-#            mconnect collections package
+#                   mconnect solutions
 #        (c) Copyright 2020 Abi Akindele (mconnect.biz)
 #
 #    See the file "LICENSE.md", included in this
 #    distribution, for details a bout the copyright / license.
 # 
-##     CRUD Library - common / extendable base type/constructor
+##     CRUD Package - common / extendable base type/constructor & procedures
 # 
 
 import db_postgres, json, tables
@@ -32,16 +32,19 @@ type
     FieldInfo = object
         fieldName*: string
         fieldType*: string
-        fieldFunction*: string # COUNT...
-        fieldOp*: string # field operators: "=", ">", ">=", "<", "<=",...
-        fieldValue*: string
         fieldAlias*: string
         show*: bool     # for mongoDB, ignore for Postgres, MySQL & SQLite
+        fieldFunction*: string # COUNT, MIN, MAX...
+        fieldOp*: string # field operators: "=", ">", ">=", "<", "<=" "IS NULL",...
+        fieldValue*: string
 
-    CaseParam = object
-        condition*: seq[FieldInfo]
-        responseMessage*: string
-        responseField*: string  # for ORDER BY options
+    CaseCondition* = object
+        fieldInfo*: seq[FieldInfo]
+        resultMessage*: string
+        resultField*: string  # for ORDER BY options
+
+    CaseParam* = object
+        conditions*: seq[CaseCondition]
         defaultField*: string   # for ORDER BY options
         defaultMessage*: string
         orderBy*: bool
@@ -61,20 +64,12 @@ type
 
     SelectFromParam* = object
         collName*: string
-        fieldNames: seq[string]
+        fieldInfo*: seq[FieldInfo]
 
     InsertIntoParam* = object
         collName*: string
-        fieldNames*: seq[string]
-    
-    SelectIntoParam* = object
-        selectFields*: seq[string] # @[] => SELECT *
-        intoColl*: string          # new table/collection
-        fromColl*: string          # old/external table/collection
-        fromFilename*: string      # IN external DB file, e.g. backup.mdb
-        whereParam*: WhereParam
-        joinParam*: JoinQueryParam # for copying from more than one table/collection
-
+        fieldInfo*: seq[FieldInfo]
+   
     # fieldValue(s) are string type for params parsing convenience,
     # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
     # fieldOp: >, =, >=, <, <=, BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE etc., with matching params (fields/values)
@@ -132,6 +127,15 @@ type
         joinType*: string # INNER (JOIN), OUTER (LEFT, RIGHT & FULL), SELF...
         joinFields*: seq[JoinField] # [{collName: "abc", joinField: "field1" },]
     
+     
+    SelectIntoParam* = object
+        selectFields*: seq[FieldInfo] # @[] => SELECT *
+        intoColl*: string          # new table/collection
+        fromColl*: string          # old/external table/collection
+        fromFilename*: string      # IN external DB file, e.g. backup.mdb
+        whereParam*: WhereParam
+        joinParam*: JoinQueryParam # for copying from more than one table/collection
+
     UnionQueryParam* = object
         selectQueryParams*: seq[QueryParam]
         whereParams*: seq[WhereParam]

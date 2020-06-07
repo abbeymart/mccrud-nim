@@ -1,11 +1,11 @@
 #
-#            mconnect collections package
+#                   mconnect solutions
 #        (c) Copyright 2020 Abi Akindele (mconnect.biz)
 #
 #    See the file "LICENSE.md", included in this
 #    distribution, for details a bout the copyright / license.
 # 
-#             CRUD Library - get record(s)
+#             CRUD Package - get record(s)
 # 
 
 ## get-record procedure is for fetching records by role (access-control)

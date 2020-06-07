@@ -1,11 +1,11 @@
 #
-#            mconnect collections package
+#                   mconnect solutions
 #        (c) Copyright 2020 Abi Akindele (mconnect.biz)
 #
 #    See the file "LICENSE.md", included in this
 #    distribution, for details a bout the copyright / license.
 # 
-#            CRUD Library - delete(remove) record(s)
+#            CRUD Package - delete(remove) record(s)
 # 
 
 
