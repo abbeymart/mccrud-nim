@@ -19,7 +19,7 @@ type
     Database = ref object
         db: DbConn
          
-    ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database
+    ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database | typed
 
     UserParam* = object
         uid*: string
@@ -31,13 +31,13 @@ type
     # values will be cast by fieldType, else will throw ValueError exception
     FieldInfo = object
         fieldName*: string
-        fieldType*: string
+        fieldValue*: string # for create/insert and update
+        fieldType*: string # "int", "string", "bool", "boolean", "float",...
         fieldAlias*: string
         show*: bool     # for mongoDB, ignore for Postgres, MySQL & SQLite
-        fieldFunction*: string # COUNT, MIN, MAX...
-        fieldOp*: string # field operators: "=", ">", ">=", "<", "<=" "IS NULL",...
-        fieldValue*: string
-
+        fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
+        fieldOp*: string # fieldOp: GT, EQ, GTE, LT, LTE, NEQ(<>), "IS NULL",... for case-query
+        
     CaseCondition* = object
         fieldInfo*: seq[FieldInfo]
         resultMessage*: string
@@ -46,7 +46,7 @@ type
     CaseParam* = object
         conditions*: seq[CaseCondition]
         defaultField*: string   # for ORDER BY options
-        defaultMessage*: string
+        defaultMessage*: string 
         orderBy*: bool
         asField*: string
 
@@ -72,18 +72,19 @@ type
    
     # fieldValue(s) are string type for params parsing convenience,
     # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
-    # fieldOp: >, =, >=, <, <=, BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE etc., with matching params (fields/values)
+    # fieldOp: GT, EQ, GTE, LT, LTE, NEQ(<>), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
     # groupOp/groupLinkOp: AND | OR
     # groupCat: user-defined, e.g. "age-policy", "demo-group"
     # groupOrder: user-defined e.g. 1, 2...
-    WhereParam* = ref object
-        fieldName*, fieldType*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
+    WhereParam* = object
+        fieldColl*, fieldName*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
+        fieldType*: string
         fieldOrder*, groupOrder*: int
         fieldPreOp*: string # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
         fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
         fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
-        # fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
+        fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
 
     QueryTop* = object          
         topValue: Positive
@@ -105,14 +106,14 @@ type
         orderType*: string # "ASC" ("asc") | "DESC" ("desc")
         # subQueryParams*: SubQueryParam # for ANY, ALL, EXISTS...
 
-    SubQueryParam* = object
+    SubQueryParam* = ref object
         whereType*: string   # EXISTS, ANY, ALL
         whereField*: string  # for ANY / ALL | Must match the fieldName in queryParam
         whereOp*: string     # e.g. "=" for ANY / ALL
         queryParams*: QueryParam
         queryWhereParams*: WhereParam
 
-    # TODO: combined/joined query (read) param-type
+    # combined/joined query (read) param-type
     JoinSelectField* =  object
         collName: string
         collFields*: seq[FieldInfo]
@@ -133,7 +134,7 @@ type
         intoColl*: string          # new table/collection
         fromColl*: string          # old/external table/collection
         fromFilename*: string      # IN external DB file, e.g. backup.mdb
-        whereParam*: WhereParam
+        whereParam*: seq[WhereParam]
         joinParam*: JoinQueryParam # for copying from more than one table/collection
 
     UnionQueryParam* = object
@@ -142,7 +143,7 @@ type
         orderParams*: seq[OrderParam]
 
     GetRecordParam* = object
-        queryBy*: string # "id" or "param"
+        queryBy*: string # "uid" or "param"
         queryIds: seq[string]
         queryParams: seq[QueryParam]
 
@@ -295,8 +296,8 @@ proc checkAccess*(accessDb: Database, options: UserParam): UserParam =
     echo db.repr
     result = UserParam()
 
-proc getCurrentRecord*(appDb: Database; collName: string; getRecordParams: GetRecordParam) =
+proc getCurrentRecord*(appDb: Database; collName: string; whereParams: WhereParam) =
     echo "save-record"
 
-proc taskPermitted*(appDb: Database; collName: string; getRecordParams: GetRecordParam) =
+proc taskPermitted*(appDb: Database; collName: string) =
     echo "save-record"
