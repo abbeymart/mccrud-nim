@@ -24,7 +24,7 @@ type
 
     UserParam* = object
         uid*: string
-        username*: string
+        loginName*: string
         email*: string
         token*: string
 
@@ -232,7 +232,26 @@ type
         isActive*: bool
         isAdmin*: bool
         roleServices*: seq[RoleService]
-  
+
+# helper procedures
+# TODO: move to mcutils package
+proc strToBool*(val: string): bool =
+    try:
+        if val.toLowerAscii == "true":
+            return true
+        if val.toLowerAscii == "t":
+            return true
+        elif val.toLowerAscii == "yes":
+            return true
+        elif val.toLowerAscii == "y":
+            return true
+        elif val.parseInt > 0:
+            return true
+        else:
+            return false 
+    except:
+        return false
+
 # default contructor
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
     var defaultTable = initTable[string, JsonNode]()
@@ -287,7 +306,7 @@ proc getRoleServices*(accessDb: Database; userGroup: string; roleColl: string = 
     var roleServices: seq[RoleService] = @[]
     try:
         var roleQuery = sql("SELECT service, group, category, can_create, can_update, can_read, can_delete FROM " &
-                         roleColl & "WHERE group = " & userGroup & " AND is_active = true")
+                         roleColl & " WHERE group = " & userGroup & " AND is_active = true")
         
         let queryResult = accessDb.db.getAllRows(roleQuery)
 
@@ -296,10 +315,10 @@ proc getRoleServices*(accessDb: Database; userGroup: string; roleColl: string = 
                 service: row[0],
                 group: row[1],
                 category: row[2],
-                canRead: bool(row[3].parseInt),
-                canCreate: bool(row[4].parseInt),
-                canUpdate: bool(row[5].parseInt),
-                canDelete: bool(row[6].parseInt)
+                canRead: strToBool(row[3]),
+                canCreate: strToBool(row[4]),
+                canUpdate: strToBool(row[5]),
+                canDelete: strToBool(row[6])
             ))
 
         return roleServices
@@ -315,7 +334,7 @@ proc checkAccess*(
                 userColl: string = "users"; 
                 roleColl: string = "roles";): ResponseMessage =
     
-    # validate current user active status: by token (API) and/or user/loggedIn-status
+    # validate current user active status: by token (API) and user/loggedIn-status
     var
         isActive   = false
         userId       = ""
@@ -327,8 +346,9 @@ proc checkAccess*(
         accessRecord: Row = @[]
     
     try:
-        var accessQuery = sql("SELECT expiry_time, user_id FROM " & accessColl & " WHERE uid = " &
-                            userInfo.uid & " AND token = " & userInfo.token)
+        var accessQuery = sql("SELECT expire, user_id FROM " & accessColl & " WHERE user_id = " &
+                            userInfo.uid & " AND token = " & userInfo.token &
+                            " AND login_name = " & userInfo.loginName)
 
         accessRecord = accessDb.db.getRow(accessQuery)
 
