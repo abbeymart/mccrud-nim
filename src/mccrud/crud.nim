@@ -226,11 +226,11 @@ type
         canDelete*: bool
     
     CheckAccess* = object
-        userActive*: bool
         userId*: string
-        isAdmin*: bool
         userRole*: string
-        userRoles*: seq[string]
+        userRoles*: JsonNode
+        isActive*: bool
+        isAdmin*: bool
         roleServices*: seq[RoleService]
   
 # default contructor
@@ -283,7 +283,7 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     # translog instance
     result.transLog = newLog(result.auditDb, result.auditColl)
 
-proc roleServices*(accessDb: Database; userGroup: string; roleColl: string = "roles"): seq[RoleService] =
+proc getRoleServices*(accessDb: Database; userGroup: string; roleColl: string = "roles"): seq[RoleService] =
     var roleServices: seq[RoleService] = @[]
     try:
         var roleQuery = sql("SELECT service, group, category, can_create, can_update, can_read, can_delete FROM " &
@@ -317,13 +317,13 @@ proc checkAccess*(
     
     # validate current user active status: by token (API) and/or user/loggedIn-status
     var
-        userActive   = false
+        isActive   = false
         userId       = ""
         isAdmin      = false
         userRole     = ""
-        userRoles: seq[string]    = @[]
+        userRoles: JsonNode    = nil
         roleServices: seq[RoleService] = @[]
-        currentUser  = ""
+        currentUser: Row  = @[]
         accessRecord: Row = @[]
     
     try:
@@ -343,7 +343,32 @@ proc checkAccess*(
         var userQuery = sql("SELECT uid, default_group, groups, is_active, profile FROM " & userColl &
                             " WHERE uid = " & userInfo.uid & " AND is_active = true")
 
-        # currentUser = accessDb.db.getRow(userQuery)
+        currentUser = accessDb.db.getRow(userQuery)
+
+        if currentUser.len > 0:
+            roleServices = getRoleServices(accessDb, currentUser[1], roleColl)
+
+            # Extract the info from currentUser
+
+            userId     = currentUser[0]
+            userRole   = currentUser[1]
+            userRoles  = parseJson(currentUser[2])
+            isActive   = bool(currentUser[3].parseInt)
+            isAdmin    = parseJson(currentUser[4]){"isAdmin"}.getBool(false)
+
+            let accessRes = CheckAccess(userId: userId,
+                                    userRole: userRole,
+                                    userRoles: userRoles,
+                                    isActive: false,
+                                    isAdmin: false,
+                                    roleServices: roleServices
+                                    )
+            return getResMessage("success", ResponseMessage(
+                                            value: %*(accessRes), 
+                                            message: "Unauthorized: user information not found or inactive") )
+
+        else:
+            return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: user information not found or inactive") )
 
     except:
         return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
