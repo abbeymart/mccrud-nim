@@ -8,6 +8,7 @@
 ##     CRUD Package - common / extendable base type/constructor & procedures
 # 
 
+import strutils, times
 import db_postgres, json, tables
 import mcdb, mccache, mcresponse, mctranslog
 
@@ -224,21 +225,13 @@ type
         canUpdate*: bool
         canDelete*: bool
     
-    RoleServices* = object
-        roleServices*: seq[RoleService]
-    
     CheckAccess* = object
         userActive*: bool
         userId*: string
         isAdmin*: bool
         userRole*: string
         userRoles*: seq[string]
-        roleServices*: RoleServices
-    
-    CheckAccessResponse* = ref object
-        code*: string
-        message*: string
-        value*: CheckAccess
+        roleServices*: seq[RoleService]
   
 # default contructor
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
@@ -290,29 +283,92 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     # translog instance
     result.transLog = newLog(result.auditDb, result.auditColl)
 
+proc roleServices*(accessDb: Database; userGroup: string; roleColl: string = "roles"): seq[RoleService] =
+    var roleServices: seq[RoleService] = @[]
+    try:
+        var roleQuery = sql("SELECT service, group, category, can_create, can_update, can_read, can_delete FROM " &
+                         roleColl & "WHERE group = " & userGroup & " AND is_active = true")
+        
+        let queryResult = accessDb.db.getAllRows(roleQuery)
 
-proc roleServices*(accessDb: Database; userGroup: string; roleColl: string = "roles"): RoleServices =
-    var db:Database = accessDb
-    echo db.repr
-    RoleServices()
+        for row in queryResult:
+            roleServices.add(RoleService(
+                service: row[0],
+                group: row[1],
+                category: row[2],
+                canRead: bool(row[3].parseInt),
+                canCreate: bool(row[4].parseInt),
+                canUpdate: bool(row[5].parseInt),
+                canDelete: bool(row[6].parseInt)
+            ))
 
-proc checkAccess*(accessDb: Database, userInfo: UserParam): CheckAccessResponse =
-    var db:Database = accessDb
-    echo db.repr
-    result = CheckAccessResponse()
+        return roleServices
+    except:
+        return roleServices
+
+proc checkAccess*(
+                accessDb: Database; 
+                collName: string;
+                recordIds: seq[string];
+                userInfo: UserParam; 
+                accessColl: string = "accesskeys";
+                userColl: string = "users"; 
+                roleColl: string = "roles";): ResponseMessage =
+    
+    # validate current user active status: by token (API) and/or user/loggedIn-status
+    var
+        userActive   = false
+        userId       = ""
+        isAdmin      = false
+        userRole     = ""
+        userRoles: seq[string]    = @[]
+        roleServices: seq[RoleService] = @[]
+        currentUser  = ""
+        accessRecord: Row = @[]
+    
+    try:
+        var accessQuery = sql("SELECT expiry_time, user_id FROM " & accessColl & " WHERE uid = " &
+                            userInfo.uid & " AND token = " & userInfo.token)
+
+        accessRecord = accessDb.db.getRow(accessQuery)
+
+        if accessRecord.len > 0:
+            # check expiry date
+            if getTime() > fromUnix(accessRecord[0].parseInt):
+                return getResMessage("tokenExpired", ResponseMessage(value: nil, message: "Access expired: please login to continue") )
+        else:
+            return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: please ensure that you are logged-in") )
+
+        # current-user status/info
+        var userQuery = sql("SELECT uid, default_group, groups, is_active, profile FROM " & userColl &
+                            " WHERE uid = " & userInfo.uid & " AND is_active = true")
+
+        # currentUser = accessDb.db.getRow(userQuery)
+
+    except:
+        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 proc getCurrentRecord*(appDb: Database; collName: string; whereParams: WhereParam): ResponseMessage =
-    echo "get-record"
-    var db:Database = appDb
-    echo db.repr
-    var response  = ResponseMessage(value: nil,
-                                    message: "records retrieved successfuly",
-                                    code: "success"
-                    )
-    result = getResMessage("success", response)
+    try:
+        echo "get-record"
+        var db:Database = appDb
+        echo db.repr
+        var response  = ResponseMessage(value: nil,
+                                        message: "records retrieved successfuly",
+                                        code: "success"
+                        )
+        result = getResMessage("success", response)
+    except:
+        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
-proc taskPermitted*(appDb: Database; collName: string; recordIds: seq[string]; userInfo: UserParam): ResponseMessage =
+proc createPermitted*(appDb: Database; 
+                    collName: string;
+                    recordIds: seq[string];
+                    userInfo: UserParam;
+                    roleColl: string = "roles"; 
+                    serviceColl: string = "services";): ResponseMessage =
     # permit task(crud), by owner, role or admin only => on coll/table or doc/record(s)
+    
     echo "task-permission"
     var db:Database = appDb
     echo db.repr
@@ -321,3 +377,34 @@ proc taskPermitted*(appDb: Database; collName: string; recordIds: seq[string]; u
                                     code: "success"
                     )
     result = getResMessage("success", response)
+
+proc updatePermitted*(appDb: Database;
+                    collName: string;
+                    recordIds: seq[string];
+                    userInfo: UserParam;
+                    roleColl: string = "roles"; 
+                    serviceColl: string = "services";): ResponseMessage =
+    # permit task(crud), by owner, role or admin only => on coll/table or doc/record(s)
+    try:
+        echo "task-permission"
+        var db:Database = appDb
+        echo db.repr
+
+        var recordRolePermitted, tableRolePermitted: bool = false
+
+        # table/collection level permission
+        let tableQuery = sql("SELECT * FROM ")
+
+        var response  = ResponseMessage(value: nil,
+                                    message: "records retrieved successfuly",
+                                    code: "success"
+                    )
+        result = getResMessage("success", response)
+
+        # record(s) level permission
+
+        # record(s) owner's permissions
+
+
+    except:
+        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
