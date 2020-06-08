@@ -142,10 +142,10 @@ type
         whereParams*: seq[WhereParam]
         orderParams*: seq[OrderParam]
 
-    GetRecordParam = object
-        queryBy*: string # "uid" or "param"
-        queryIds*: seq[string]
-        queryParams*: seq[QueryParam]
+    # GetRecordParam = object
+    #     queryBy*: string # "uid" or "param"
+    #     queryIds*: seq[string]
+    #     queryParams*: seq[QueryParam]
 
     ## Shared CRUD Operation Types
     ##    
@@ -224,7 +224,7 @@ type
         canUpdate*: bool
         canDelete*: bool
     
-    RoleServices* = ref object
+    RoleServices* = object
         roleServices*: seq[RoleService]
     
     CheckAccess* = object
@@ -233,7 +233,7 @@ type
         isAdmin*: bool
         userRole*: string
         userRoles*: seq[string]
-        roleServices*: seq[string]
+        roleServices*: RoleServices
     
     CheckAccessResponse* = ref object
         code*: string
@@ -291,17 +291,20 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     result.transLog = newLog(result.auditDb, result.auditColl)
 
 
-proc roleServices*(accessDb: Database; userGroup: string; roleColl: string = "roles") =
+proc roleServices*(accessDb: Database; userGroup: string; roleColl: string = "roles"): RoleServices =
     var db:Database = accessDb
     echo db.repr
+    RoleServices()
 
-proc checkAccess*(accessDb: Database, userInfo: UserParam): UserParam =
+proc checkAccess*(accessDb: Database, userInfo: UserParam): CheckAccessResponse =
     var db:Database = accessDb
     echo db.repr
-    result = UserParam()
+    result = CheckAccessResponse()
 
 proc getCurrentRecord*(appDb: Database; collName: string; whereParams: WhereParam): ResponseMessage =
     echo "get-record"
+    var db:Database = appDb
+    echo db.repr
     var response  = ResponseMessage(value: nil,
                                     message: "records retrieved successfuly",
                                     code: "success"
@@ -311,6 +314,8 @@ proc getCurrentRecord*(appDb: Database; collName: string; whereParams: WherePara
 proc taskPermitted*(appDb: Database; collName: string; recordIds: seq[string]; userInfo: UserParam): ResponseMessage =
     # permit task(crud), by owner, role or admin only => on coll/table or doc/record(s)
     echo "task-permission"
+    var db:Database = appDb
+    echo db.repr
     var response  = ResponseMessage(value: nil,
                                     message: "records retrieved successfuly",
                                     code: "success"
