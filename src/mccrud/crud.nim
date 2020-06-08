@@ -233,8 +233,7 @@ type
         isAdmin*: bool
         roleServices*: seq[RoleService]
 
-# helper procedures
-# TODO: move to mcutils package
+# helper procedures | # TODO: move to mcutils package
 proc strToBool*(val: string): bool =
     try:
         if val.toLowerAscii == "true":
@@ -251,6 +250,12 @@ proc strToBool*(val: string): bool =
             return false 
     except:
         return false
+
+proc strToTime*(val: string): Time =
+    try:
+        result = fromUnix(val.parseInt)
+    except:
+        return Time()
 
 # default contructor
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
@@ -354,7 +359,7 @@ proc checkAccess*(
 
         if accessRecord.len > 0:
             # check expiry date
-            if getTime() > fromUnix(accessRecord[0].parseInt):
+            if getTime() > strToTime(accessRecord[0]):
                 return getResMessage("tokenExpired", ResponseMessage(value: nil, message: "Access expired: please login to continue") )
         else:
             return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: please ensure that you are logged-in") )
@@ -366,39 +371,51 @@ proc checkAccess*(
         currentUser = accessDb.db.getRow(userQuery)
 
         if currentUser.len > 0:
+            # Get role assignment (i.e. service items permitted for the user-group)
             roleServices = getRoleServices(accessDb, currentUser[1], roleColl)
 
             # Extract the info from currentUser
-
             userId     = currentUser[0]
             userRole   = currentUser[1]
             userRoles  = parseJson(currentUser[2])
             isActive   = bool(currentUser[3].parseInt)
             isAdmin    = parseJson(currentUser[4]){"isAdmin"}.getBool(false)
 
-            let accessRes = CheckAccess(userId: userId,
-                                    userRole: userRole,
-                                    userRoles: userRoles,
-                                    isActive: false,
-                                    isAdmin: false,
+            let accessRes = CheckAccess(userId: currentUser[0],
+                                    userRole: currentUser[1],
+                                    userRoles: parseJson(currentUser[2]),
+                                    isActive: strToBool(currentUser[3]),
+                                    isAdmin: parseJson(currentUser[4]){"isAdmin"}.getBool(false),
                                     roleServices: roleServices
                                     )
             return getResMessage("success", ResponseMessage(
                                             value: %*(accessRes), 
-                                            message: "Unauthorized: user information not found or inactive") )
-
+                                            message: "Request completed successfully. ") )
         else:
             return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: user information not found or inactive") )
-
     except:
-        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
+        return getResMessage("notFound", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 proc getCurrentRecord*(appDb: Database; collName: string; whereParams: WhereParam): ResponseMessage =
     try:
-        echo "get-record"
-        var db:Database = appDb
-        echo db.repr
-        var response  = ResponseMessage(value: nil,
+        # WhereParam* = object
+            # fieldColl*, fieldName*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
+            # fieldType*: string
+            # fieldOrder*, groupOrder*: int
+            # fieldPreOp*: string # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
+            # fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
+            # fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
+            # fieldValues*: seq[string] # values for IN/NOTIN operator
+            # fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
+
+        # TODO: compose query statement based on the whereParams
+        var whereQuery = ""
+
+        var reqQuery = sql("SELECT * FROM " & collName & " " & whereQuery)
+
+        var reqResult = appDb.db.getAllRows(reqQuery)
+
+        var response  = ResponseMessage(value: %*(reqResult),
                                         message: "records retrieved successfuly",
                                         code: "success"
                         )
