@@ -28,17 +28,37 @@ type
         email*: string
         token*: string
 
-    # value are string type for params parsing convenience,
-    # values will be cast by fieldType, else will throw ValueError exception
-    FieldInfo = object
+    # fieldValue(s) are string type for params parsing convenience,
+    # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
+    # fieldOp: GT, EQ, GTE, LT, LTE, NEQ(<>), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
+    # groupOp/groupLinkOp: AND | OR
+    # groupCat: user-defined, e.g. "age-policy", "demo-group"
+    # groupOrder: user-defined e.g. 1, 2...
+    FieldInfo* = object
+        fieldColl*: string
         fieldName*: string
-        fieldValue*: string # for create/insert and update
-        fieldType*: string # "int", "string", "bool", "boolean", "float",...
-        fieldAlias*: string
+        fieldType*: string   # "int", "string", "bool", "boolean", "float",...
+        fieldOrder*: string
+        fieldOp*: string     # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
+        fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
+        fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
+        fieldValues*: seq[string] # values for IN/NOTIN operator
+        fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
+        groupOp*: string     # e.g. AND | OR...
+        fieldAlias*: string # for SELECT/Read query
         show*: bool     # for mongoDB, ignore for Postgres, MySQL & SQLite
         fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
-        fieldOp*: string # fieldOp: GT, EQ, GTE, LT, LTE, NEQ(<>), "IS NULL",... for case-query
-        
+
+    WhereParam* = object
+        groupCat*: string
+        groupLinkOp*: string
+        groupOrder*: int
+        groupItems*: seq[FieldInfo]
+  
+    QueryTop* = object          
+        topValue: Positive
+        topUnit: string # number or percentage (# or %)
+    
     CaseCondition* = object
         fieldInfo*: seq[FieldInfo]
         resultMessage*: string
@@ -70,27 +90,7 @@ type
     InsertIntoParam* = object
         collName*: string
         fieldInfo*: seq[FieldInfo]
-   
-    # fieldValue(s) are string type for params parsing convenience,
-    # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
-    # fieldOp: GT, EQ, GTE, LT, LTE, NEQ(<>), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
-    # groupOp/groupLinkOp: AND | OR
-    # groupCat: user-defined, e.g. "age-policy", "demo-group"
-    # groupOrder: user-defined e.g. 1, 2...
-    WhereParam* = object
-        fieldColl*, fieldName*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
-        fieldType*: string
-        fieldOrder*, groupOrder*: int
-        fieldPreOp*: string # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
-        fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
-        fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
-        fieldValues*: seq[string] # values for IN/NOTIN operator
-        fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
 
-    QueryTop* = object          
-        topValue: Positive
-        topUnit: string # number or percentage (# or %)
-    
     OrderParam* = object
         collName: string
         fieldName*: string
@@ -257,6 +257,26 @@ proc strToTime*(val: string): Time =
     except:
         return Time()
 
+proc computeWhereQuery(whereParams: seq[WhereParam]): string =
+    echo "where-query"
+
+    var composeTab = initTable[string, string]()
+
+    # sort whereParams by groupOrder (ASC)
+
+    # iterate through whereParams
+        # set initial table value for the group
+
+        # sort groupCat items by fieldOrder (ASC)
+
+        # compute the field-where-script
+
+        # compute group-script: append field-script by fieldOrder into the group-table value
+       
+    # iterate through the composeTable/group-scripts
+    # compute where-script from the group-script, append in sequence by groupOrder 
+
+
 # default contructor
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
     var defaultTable = initTable[string, JsonNode]()
@@ -396,20 +416,10 @@ proc checkAccess*(
     except:
         return getResMessage("notFound", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
-proc getCurrentRecord*(appDb: Database; collName: string; whereParams: WhereParam): ResponseMessage =
+proc getCurrentRecord*(appDb: Database; collName: string; whereParams: seq[WhereParam]): ResponseMessage =
     try:
-        # WhereParam* = object
-            # fieldColl*, fieldName*, fieldOp*, groupOp*, groupCat*, groupLinkOp*: string
-            # fieldType*: string
-            # fieldOrder*, groupOrder*: int
-            # fieldPreOp*: string # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
-            # fieldValue*: string     # start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
-            # fieldValueEnd*: string # end value for range/BETWEEN/NOTBETWEEN operator
-            # fieldValues*: seq[string] # values for IN/NOTIN operator
-            # fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
-
         # TODO: compose query statement based on the whereParams
-        var whereQuery = ""
+        var whereQuery = computeWhereQuery(whereParams)
 
         var reqQuery = sql("SELECT * FROM " & collName & " " & whereQuery)
 
