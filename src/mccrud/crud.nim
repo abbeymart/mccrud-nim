@@ -315,14 +315,16 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
                 if groupItem.groupOp != "":
                     if itemCount < itemsLen:
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    # elif:
-                    #     fieldQuery = fieldQuery & " "
+                    else:
+                        fieldQuery = fieldQuery & " "
             of "NEQ", "!=", "<>":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & fieldname & " <> " & groupItem.fieldValue
                 if groupItem.groupOp != "":
                     if itemCount < itemsLen:
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
+                    else:
+                        fieldQuery = fieldQuery & " "
             of "LT", "<":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & fieldname & " < " & groupItem.fieldValue
@@ -335,18 +337,24 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
                 if groupItem.groupOp != "":
                     if itemCount < itemsLen:
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
+                    else:
+                        fieldQuery = fieldQuery & " "
             of "GTE", ">=":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & fieldname & " >= " & groupItem.fieldValue
                 if groupItem.groupOp != "":
                     if itemCount < itemsLen:
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
+                    else:
+                        fieldQuery = fieldQuery & " "
             of "GT", ">":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & fieldname & " > " & groupItem.fieldValue
                 if groupItem.groupOp != "":
                     if itemCount < itemsLen:
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
+                    else:
+                        fieldQuery = fieldQuery & " "
             
         # compute group-script: append field-script by fieldOrder into the group-table value
         if groupCount < groupsLen:
