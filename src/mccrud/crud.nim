@@ -39,8 +39,8 @@ type
         fieldName*: string
         fieldType*: string   # "int", "string", "bool", "boolean", "float",...
         fieldOrder*: string
-        fieldOp*: string    # GT, EQ, GTE, LT, LTE, NEQ(<>), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
-        fieldPreOp*: string     # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
+        fieldOp*: string    # GT/>, EQ/==, GTE/>=, LT/<, LTE/<=, NEQ(<>/!=), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
+        # fieldPreOp*: string     # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
         fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
         fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
@@ -259,9 +259,7 @@ proc strToTime*(val: string): Time =
         return Time()
 
 proc computeWhereQuery(whereParams: seq[WhereParam]): string =
-    echo "where-query"
-
-    var composeTab = initTable[string, string]()
+    # initialize variable to compose where-query
     var whereQuery = "WHERE "
 
     # WhereParam* = object
@@ -274,7 +272,7 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
     #     fieldName*: string
     #     fieldType*: string   # "int", "string", "bool", "boolean", "float",...
     #     fieldOrder*: string
-    #     fieldOp*: string     # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
+    #     fieldOp*: string     # GT/>, EQ/==, GTE/>=, LT/<, LTE/<=, NEQ(<>/!=), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
     #     fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
     #     fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
     #     fieldValues*: seq[string] # values for IN/NOTIN operator
@@ -288,13 +286,14 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
     var sortedGroups  = whereParams.sortedByIt(it.groupOrder)
     let groupsLen = sortedGroups.len()
 
+    # variables to determine the end of groups and group-items
     var groupCount, itemCount = 0
 
-    # iterate through whereParams
+    # iterate through whereParams (groups)
     for group in sortedGroups:
         groupCount += 1
         # set initial table value for the group
-        composeTab[group.groupCat] = ""
+        # composeTab[group.groupCat] = ""
 
         # sort groupCat items by fieldOrder (ASC)
         var sortedItems  = group.groupItems.sortedByIt(it.fieldOrder)
@@ -319,7 +318,7 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
                         fieldQuery = fieldQuery & " "
             of "NEQ", "!=", "<>":
                 if groupItem.fieldValue != "":
-                    fieldQuery = " " & fieldQuery & fieldname & " <> " & groupItem.fieldValue
+                    fieldQuery = " " & fieldQuery & " NOT " & fieldname & " = " & groupItem.fieldValue
                 if groupItem.groupOp != "":
                     if itemCount < itemsLen:
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
@@ -355,13 +354,20 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
                     else:
                         fieldQuery = fieldQuery & " "
-            
-        # compute group-script: append field-script by fieldOrder into the group-table value
-        if groupCount < groupsLen:
-           whereQuery = whereQuery & fieldQuery
-    # iterate through the composeTable/group-scripts
 
-    # compute where-script from the group-script, append in sequence by groupOrder 
+        # add closing bracket to complete the group-items query/script
+        fieldQuery = fieldQuery & " )"
+        
+        # add optional groupLinkOp, if groupLen > 1
+        if groupCount < groupsLen and group.groupLinkOp != "":
+            fieldQuery = fieldQuery & " " & group.groupLinkOp.toUpperAscii() & " "
+        elif groupCount < groupsLen and group.groupLinkOp == "":
+            fieldQuery = fieldQuery & " AND "   # default groupLinkOp => AND
+        else:
+            fieldQuery = fieldQuery & " "
+            
+        # compute where-script from the group-script, append in sequence by groupOrder 
+        whereQuery = whereQuery & " " & fieldQuery
 
 
 # default contructor
