@@ -392,11 +392,24 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     # translog instance
     result.transLog = newLog(result.auditDb, result.auditColl)
 
-proc getRoleServices*(accessDb: Database; userGroup: string; roleColl: string = "roles"): seq[RoleService] =
+proc getRoleServices*(
+                    accessDb: Database;
+                    userGroup: string;
+                    serviceIds: seq[string];   # for any tasks (record, coll/table, function...)
+                    roleColl: string = "roles"
+                    ): seq[RoleService] =
     var roleServices: seq[RoleService] = @[]
     try:
+        # var collInfoQuery = sql("SELECT uid from " & serviceColl &
+        #                         " WHERE category IN ('collection', 'table') AND user_role = " &
+        #                         currentUser[1] )
+
+        #  concatenate serviceIds for query computation:
+        let itemIds = serviceIds.join(", ")
+
         var roleQuery = sql("SELECT service_id, group, category, can_create, can_update, can_read, can_delete FROM " &
-                         roleColl & " WHERE group = " & userGroup & " AND is_active = true")
+                         roleColl & " WHERE group = " & userGroup & " AND service_id IN (" & itemIds & ") " &
+                         " AND is_active = true")
         
         let queryResult = accessDb.db.getAllRows(roleQuery)
 
@@ -404,26 +417,29 @@ proc getRoleServices*(accessDb: Database; userGroup: string; roleColl: string = 
             roleServices.add(RoleService(
                 serviceId: row[0],
                 group: row[1],
-                category: row[2],
+                category: row[2],   # coll/table, package_group, package, module, function etc.
                 canRead: strToBool(row[3]),
                 canCreate: strToBool(row[4]),
                 canUpdate: strToBool(row[5]),
                 canDelete: strToBool(row[6])
             ))
-
         return roleServices
     except:
         return roleServices
 
 proc checkAccess*(
                 accessDb: Database; 
-                userInfo: UserParam; 
+                userInfo: UserParam;
+                collName: string;
+                docIds: seq[string] = @[];    # for update, delete and read tasks 
                 accessColl: string = "accesskeys";
-                userColl: string = "users"; 
-                roleColl: string = "roles";): ResponseMessage =
-    
+                userColl: string = "users";
+                roleColl: string = "roles";
+                serviceColl: string = "services";
+                ): ResponseMessage =
     # validate current user active status: by token (API) and user/loggedIn-status
     try:
+        # check active login session
         let accessQuery = sql("SELECT expire, user_id FROM " & accessColl & " WHERE user_id = " &
                             userInfo.uid & " AND token = " & userInfo.token &
                             " AND login_name = " & userInfo.loginName)
@@ -437,28 +453,45 @@ proc checkAccess*(
         else:
             return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: please ensure that you are logged-in") )
 
-        # current-user status/info
+        # check current current-user status/info
         let userQuery = sql("SELECT uid, default_group, groups, is_active, profile FROM " & userColl &
                             " WHERE uid = " & userInfo.uid & " AND is_active = true")
 
         let currentUser = accessDb.db.getRow(userQuery)
 
-        if currentUser.len > 0:
-            # Get role assignment (i.e. service items permitted for the user-group)
-            var roleServices = getRoleServices(accessDb, currentUser[1], roleColl)
+        if currentUser.len() < 1:
+            return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: user information not found or inactive") )
 
-            let accessRes = CheckAccess(userId: currentUser[0],
+        # if all the above checks passed, check for role-services access by taskType
+        # check access by taskType
+        # obtain collName - collId (uid) from serviceColl/table
+        var collInfoQuery = sql("SELECT uid from " & serviceColl &
+                                " WHERE name = " & collName )
+
+        let collInfo = accessDb.db.getRow(collInfoQuery)
+
+        # include collId and docIds in serviceIds
+        var serviceIds = docIds
+        if collInfo.len() > 0:
+            serviceIds.add(collInfo[0])
+
+        # Get role assignment (i.e. service items permitted for the user-group)
+        var roleServices = getRoleServices(accessDb = accessDb,
+                                        serviceIds = serviceIds,
+                                        userGroup = currentUser[1],
+                                        roleColl = roleColl)
+
+        let accessRes = CheckAccess(userId: currentUser[0],
                                     userRole: currentUser[1],
                                     userRoles: parseJson(currentUser[2]),
                                     isActive: strToBool(currentUser[3]),
                                     isAdmin: parseJson(currentUser[4]){"isAdmin"}.getBool(false),
                                     roleServices: roleServices
                                     )
-            return getResMessage("success", ResponseMessage(
+
+        return getResMessage("success", ResponseMessage(
                                             value: %*(accessRes), 
-                                            message: "Request completed successfully. ") )
-        else:
-            return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: user information not found or inactive") )
+                                            message: "Request completed successfully. ") ) 
     except:
         return getResMessage("notFound", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
@@ -481,23 +514,19 @@ proc getCurrentRecord*(appDb: Database; collName: string; whereParams: seq[Where
     except:
         return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
-proc taskPermitted*(appDb: Database;
+proc taskPermission*(appDb: Database;
                     collName: string;
                     taskType: string;   # "create", "update", "delete"/"remove", "read"
                     docIds: seq[string];    # for update, delete and read tasks
-                    whereParams: seq[WhereParam];
+                    # whereParams: seq[WhereParam];
                     userInfo: UserParam;
                     accessColl: string = "accesskeys";
                     userColl: string = "users";
                     roleColl: string = "roles";
                     serviceColl: string = "services";): ResponseMessage =
-    # permit task(crud), by owner, role or admin only => on coll/table or doc/record(s)
+    # permit task(crud): by owner, role/group, admin => on coll/table or doc/record(s)
     try:
-        echo "task-permission"
-        var db:Database = appDb
-        echo db.repr
-
-        var recordRolePermitted, tableRolePermitted: bool = false
+        var taskPermitted, recordPermitted, tablePermitted: bool = false
 
         # table/collection level permission
         let tableQuery = sql("SELECT * FROM ")
