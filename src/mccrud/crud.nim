@@ -8,7 +8,7 @@
 ##     CRUD Package - common / extendable base type/constructor & procedures
 # 
 
-import strutils, times
+import strutils, times, algorithm
 import db_postgres, json, tables
 import mcdb, mccache, mcresponse, mctranslog
 
@@ -39,7 +39,8 @@ type
         fieldName*: string
         fieldType*: string   # "int", "string", "bool", "boolean", "float",...
         fieldOrder*: string
-        fieldOp*: string     # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
+        fieldOp*: string    # GT, EQ, GTE, LT, LTE, NEQ(<>), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
+        fieldPreOp*: string     # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
         fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
         fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
@@ -261,19 +262,57 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
     echo "where-query"
 
     var composeTab = initTable[string, string]()
+    var whereQuery = "WHERE "
+
+    # WhereParam* = object
+    #     groupCat*: string
+    #     groupLinkOp*: string
+    #     groupOrder*: int
+    #     groupItems*: seq[FieldInfo]
+    # FieldInfo* = object
+    #     fieldColl*: string
+    #     fieldName*: string
+    #     fieldType*: string   # "int", "string", "bool", "boolean", "float",...
+    #     fieldOrder*: string
+    #     fieldOp*: string     # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
+    #     fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
+    #     fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
+    #     fieldValues*: seq[string] # values for IN/NOTIN operator
+    #     fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
+    #     groupOp*: string     # e.g. AND | OR...
+    #     fieldAlias*: string # for SELECT/Read query
+    #     show*: bool     # for mongoDB, ignore for Postgres, MySQL & SQLite
+    #     fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
 
     # sort whereParams by groupOrder (ASC)
+    var sortedParams  = whereParams.sortedByIt(it.groupOrder)
 
     # iterate through whereParams
+    for group in sortedParams:
+        
         # set initial table value for the group
+        composeTab[group.groupCat] = ""
 
         # sort groupCat items by fieldOrder (ASC)
+        var sortedItems  = group.groupItems.sortedByIt(it.fieldOrder)
 
         # compute the field-where-script
+        for groupItem in sortedItems:
+            var fieldQuery = " "
+            var fieldname = groupItem.fieldName
+            if groupItem.fieldColl != "":
+                fieldname = groupItem.fieldColl & "." & groupItem.fieldName
+
+            case groupItem.fieldOp:
+            of "EQ", "=":
+                if groupItem.fieldValue != "":
+                    fieldQuery = fieldQuery & groupItem.fieldName & " = " & groupItem.fieldValue
+
 
         # compute group-script: append field-script by fieldOrder into the group-table value
        
     # iterate through the composeTable/group-scripts
+
     # compute where-script from the group-script, append in sequence by groupOrder 
 
 
