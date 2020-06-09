@@ -481,28 +481,15 @@ proc getCurrentRecord*(appDb: Database; collName: string; whereParams: seq[Where
     except:
         return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
-proc createPermitted*(appDb: Database; 
+proc taskPermitted*(appDb: Database;
                     collName: string;
-                    recordIds: seq[string];
+                    taskType: string;   # "create", "update", "delete"/"remove", "read"
+                    docIds: seq[string];    # for update, delete and read tasks
+                    whereParams: seq[WhereParam];
                     userInfo: UserParam;
-                    roleColl: string = "roles"; 
-                    serviceColl: string = "services";): ResponseMessage =
-    # permit task(crud), by owner, role or admin only => on coll/table or doc/record(s)
-    
-    echo "task-permission"
-    var db:Database = appDb
-    echo db.repr
-    var response  = ResponseMessage(value: nil,
-                                    message: "records retrieved successfuly",
-                                    code: "success"
-                    )
-    result = getResMessage("success", response)
-
-proc updatePermitted*(appDb: Database;
-                    collName: string;
-                    recordIds: seq[string];
-                    userInfo: UserParam;
-                    roleColl: string = "roles"; 
+                    accessColl: string = "accesskeys";
+                    userColl: string = "users";
+                    roleColl: string = "roles";
                     serviceColl: string = "services";): ResponseMessage =
     # permit task(crud), by owner, role or admin only => on coll/table or doc/record(s)
     try:
