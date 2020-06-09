@@ -47,7 +47,7 @@ type
         fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
         groupOp*: string     # e.g. AND | OR...
         fieldAlias*: string # for SELECT/Read query
-        show*: bool     # for mongoDB, ignore for Postgres, MySQL & SQLite
+        show*: bool     # include or exclude from the SELECT query fields
         fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
 
     WhereParam* = object
@@ -55,7 +55,19 @@ type
         groupLinkOp*: string
         groupOrder*: int
         groupItems*: seq[FieldInfo]
-  
+
+    # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER defined
+    # fieldNames => specify one field for all except custom/user function,
+    # the fieldType must match the argument types expected by the functionType 
+    # otherwise the only the first function-matching field will be used, as applicable
+    QueryFunction* = object
+        functionType*: string
+        fieldInfo*: seq[FieldInfo]
+        
+    QueryParam* = object
+        collName: string    # default: "" => will use collName instead
+        fieldInfo: seq[FieldInfo]   # @[] => SELECT * (all fields)
+
     QueryTop* = object          
         topValue: Positive
         topUnit: string # number or percentage (# or %)
@@ -72,18 +84,7 @@ type
         orderBy*: bool
         asField*: string
 
-    # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER defined
-    # fieldNames => specify one field for all except custom/user function,
-    # the fieldType must match the argument types expected by the functionType 
-    # otherwise the only the first function-matching field will be used, as applicable
-    QueryFunction* = object
-        functionType*: string
-        fieldInfo*: seq[FieldInfo]
-        
-    QueryParam* = object
-        collName: string    # default: "" => will use collName instead
-        fieldInfo: seq[FieldInfo]
-
+    
     SelectFromParam* = object
         collName*: string
         fieldInfo*: seq[FieldInfo]
@@ -130,7 +131,6 @@ type
         joinType*: string # INNER (JOIN), OUTER (LEFT, RIGHT & FULL), SELF...
         joinFields*: seq[JoinField] # [{collName: "abc", joinField: "field1" },]
     
-     
     SelectIntoParam* = object
         selectFields*: seq[FieldInfo] # @[] => SELECT *
         intoColl*: string          # new table/collection
@@ -143,11 +143,6 @@ type
         selectQueryParams*: seq[QueryParam]
         whereParams*: seq[WhereParam]
         orderParams*: seq[OrderParam]
-
-    # GetRecordParam = object
-    #     queryBy*: string # "uid" or "param"
-    #     queryIds*: seq[string]
-    #     queryParams*: seq[QueryParam]
 
     ## Shared CRUD Operation Types
     ##    
@@ -218,7 +213,7 @@ type
         transLog*: LogParam 
     
     RoleService* = object
-        service*  : string
+        serviceId*  : string
         group*    : string
         category* : string
         canRead*  : bool
@@ -258,29 +253,9 @@ proc strToTime*(val: string): Time =
     except:
         return Time()
 
-proc computeWhereQuery(whereParams: seq[WhereParam]): string =
+proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
     # initialize variable to compose where-query
     var whereQuery = "WHERE "
-
-    # WhereParam* = object
-    #     groupCat*: string
-    #     groupLinkOp*: string
-    #     groupOrder*: int
-    #     groupItems*: seq[FieldInfo]
-    # FieldInfo* = object
-    #     fieldColl*: string
-    #     fieldName*: string
-    #     fieldType*: string   # "int", "string", "bool", "boolean", "float",...
-    #     fieldOrder*: string
-    #     fieldOp*: string     # GT/>, EQ/==, GTE/>=, LT/<, LTE/<=, NEQ(<>/!=), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
-    #     fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
-    #     fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
-    #     fieldValues*: seq[string] # values for IN/NOTIN operator
-    #     fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
-    #     groupOp*: string     # e.g. AND | OR...
-    #     fieldAlias*: string # for SELECT/Read query
-    #     show*: bool     # for mongoDB, ignore for Postgres, MySQL & SQLite
-    #     fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
 
     # sort whereParams by groupOrder (ASC)
     var sortedGroups  = whereParams.sortedByIt(it.groupOrder)
@@ -292,8 +267,6 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
     # iterate through whereParams (groups)
     for group in sortedGroups:
         groupCount += 1
-        # set initial table value for the group
-        # composeTab[group.groupCat] = ""
 
         # sort groupCat items by fieldOrder (ASC)
         var sortedItems  = group.groupItems.sortedByIt(it.fieldOrder)
@@ -369,7 +342,6 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
         # compute where-script from the group-script, append in sequence by groupOrder 
         whereQuery = whereQuery & " " & fieldQuery
 
-
 # default contructor
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
     var defaultTable = initTable[string, JsonNode]()
@@ -423,14 +395,14 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
 proc getRoleServices*(accessDb: Database; userGroup: string; roleColl: string = "roles"): seq[RoleService] =
     var roleServices: seq[RoleService] = @[]
     try:
-        var roleQuery = sql("SELECT service, group, category, can_create, can_update, can_read, can_delete FROM " &
+        var roleQuery = sql("SELECT service_id, group, category, can_create, can_update, can_read, can_delete FROM " &
                          roleColl & " WHERE group = " & userGroup & " AND is_active = true")
         
         let queryResult = accessDb.db.getAllRows(roleQuery)
 
         for row in queryResult:
             roleServices.add(RoleService(
-                service: row[0],
+                serviceId: row[0],
                 group: row[1],
                 category: row[2],
                 canRead: strToBool(row[3]),
@@ -445,30 +417,18 @@ proc getRoleServices*(accessDb: Database; userGroup: string; roleColl: string = 
 
 proc checkAccess*(
                 accessDb: Database; 
-                collName: string;
-                recordIds: seq[string];
                 userInfo: UserParam; 
                 accessColl: string = "accesskeys";
                 userColl: string = "users"; 
                 roleColl: string = "roles";): ResponseMessage =
     
     # validate current user active status: by token (API) and user/loggedIn-status
-    var
-        isActive   = false
-        userId       = ""
-        isAdmin      = false
-        userRole     = ""
-        userRoles: JsonNode    = nil
-        roleServices: seq[RoleService] = @[]
-        currentUser: Row  = @[]
-        accessRecord: Row = @[]
-    
     try:
-        var accessQuery = sql("SELECT expire, user_id FROM " & accessColl & " WHERE user_id = " &
+        let accessQuery = sql("SELECT expire, user_id FROM " & accessColl & " WHERE user_id = " &
                             userInfo.uid & " AND token = " & userInfo.token &
                             " AND login_name = " & userInfo.loginName)
 
-        accessRecord = accessDb.db.getRow(accessQuery)
+        let accessRecord = accessDb.db.getRow(accessQuery)
 
         if accessRecord.len > 0:
             # check expiry date
@@ -478,21 +438,14 @@ proc checkAccess*(
             return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: please ensure that you are logged-in") )
 
         # current-user status/info
-        var userQuery = sql("SELECT uid, default_group, groups, is_active, profile FROM " & userColl &
+        let userQuery = sql("SELECT uid, default_group, groups, is_active, profile FROM " & userColl &
                             " WHERE uid = " & userInfo.uid & " AND is_active = true")
 
-        currentUser = accessDb.db.getRow(userQuery)
+        let currentUser = accessDb.db.getRow(userQuery)
 
         if currentUser.len > 0:
             # Get role assignment (i.e. service items permitted for the user-group)
-            roleServices = getRoleServices(accessDb, currentUser[1], roleColl)
-
-            # Extract the info from currentUser
-            userId     = currentUser[0]
-            userRole   = currentUser[1]
-            userRoles  = parseJson(currentUser[2])
-            isActive   = bool(currentUser[3].parseInt)
-            isAdmin    = parseJson(currentUser[4]){"isAdmin"}.getBool(false)
+            var roleServices = getRoleServices(accessDb, currentUser[1], roleColl)
 
             let accessRes = CheckAccess(userId: currentUser[0],
                                     userRole: currentUser[1],
@@ -511,18 +464,20 @@ proc checkAccess*(
 
 proc getCurrentRecord*(appDb: Database; collName: string; whereParams: seq[WhereParam]): ResponseMessage =
     try:
-        # TODO: compose query statement based on the whereParams
+        # compose query statement based on the whereParams
         var whereQuery = computeWhereQuery(whereParams)
 
         var reqQuery = sql("SELECT * FROM " & collName & " " & whereQuery)
 
         var reqResult = appDb.db.getAllRows(reqQuery)
 
-        var response  = ResponseMessage(value: %*(reqResult),
-                                        message: "records retrieved successfuly",
-                                        code: "success"
-                        )
-        result = getResMessage("success", response)
+        if reqResult.len() > 0:
+            var response  = ResponseMessage(value: %*(reqResult),
+                                        message: "Records retrieved successfuly.",
+                                        code: "success")
+            return getResMessage("success", response)
+        else:
+            return getResMessage("notFound", ResponseMessage(value: nil, message: "No record(s) found!"))
     except:
         return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
