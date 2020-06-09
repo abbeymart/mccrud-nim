@@ -285,20 +285,25 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
     #     fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
 
     # sort whereParams by groupOrder (ASC)
-    var sortedParams  = whereParams.sortedByIt(it.groupOrder)
+    var sortedGroups  = whereParams.sortedByIt(it.groupOrder)
+    let groupsLen = sortedGroups.len()
+
+    var groupCount, itemCount = 0
 
     # iterate through whereParams
-    for group in sortedParams:
-        
+    for group in sortedGroups:
+        groupCount += 1
         # set initial table value for the group
         composeTab[group.groupCat] = ""
 
         # sort groupCat items by fieldOrder (ASC)
         var sortedItems  = group.groupItems.sortedByIt(it.fieldOrder)
+        let itemsLen = sortedItems.len()
 
         # compute the field-where-script
+        var fieldQuery = "("
         for groupItem in sortedItems:
-            var fieldQuery = " "
+            itemCount += 1
             var fieldname = groupItem.fieldName
             if groupItem.fieldColl != "":
                 fieldname = groupItem.fieldColl & "." & groupItem.fieldName
@@ -306,11 +311,46 @@ proc computeWhereQuery(whereParams: seq[WhereParam]): string =
             case groupItem.fieldOp:
             of "EQ", "=":
                 if groupItem.fieldValue != "":
-                    fieldQuery = fieldQuery & groupItem.fieldName & " = " & groupItem.fieldValue
-
-
+                    fieldQuery = " " & fieldQuery & fieldname & " = " & groupItem.fieldValue
+                if groupItem.groupOp != "":
+                    if itemCount < itemsLen:
+                        fieldQuery = fieldQuery & " " & groupItem.groupOp
+                    # elif:
+                    #     fieldQuery = fieldQuery & " "
+            of "NEQ", "!=", "<>":
+                if groupItem.fieldValue != "":
+                    fieldQuery = " " & fieldQuery & fieldname & " <> " & groupItem.fieldValue
+                if groupItem.groupOp != "":
+                    if itemCount < itemsLen:
+                        fieldQuery = fieldQuery & " " & groupItem.groupOp
+            of "LT", "<":
+                if groupItem.fieldValue != "":
+                    fieldQuery = " " & fieldQuery & fieldname & " < " & groupItem.fieldValue
+                if groupItem.groupOp != "":
+                    if itemCount < itemsLen:
+                        fieldQuery = fieldQuery & " " & groupItem.groupOp
+            of "LTE", "<=":
+                if groupItem.fieldValue != "":
+                    fieldQuery = " " & fieldQuery & fieldname & " <= " & groupItem.fieldValue
+                if groupItem.groupOp != "":
+                    if itemCount < itemsLen:
+                        fieldQuery = fieldQuery & " " & groupItem.groupOp
+            of "GTE", ">=":
+                if groupItem.fieldValue != "":
+                    fieldQuery = " " & fieldQuery & fieldname & " >= " & groupItem.fieldValue
+                if groupItem.groupOp != "":
+                    if itemCount < itemsLen:
+                        fieldQuery = fieldQuery & " " & groupItem.groupOp
+            of "GT", ">":
+                if groupItem.fieldValue != "":
+                    fieldQuery = " " & fieldQuery & fieldname & " > " & groupItem.fieldValue
+                if groupItem.groupOp != "":
+                    if itemCount < itemsLen:
+                        fieldQuery = fieldQuery & " " & groupItem.groupOp
+            
         # compute group-script: append field-script by fieldOrder into the group-table value
-       
+        if groupCount < groupsLen:
+           whereQuery = whereQuery & fieldQuery
     # iterate through the composeTable/group-scripts
 
     # compute where-script from the group-script, append in sequence by groupOrder 
