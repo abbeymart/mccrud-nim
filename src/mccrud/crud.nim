@@ -400,10 +400,6 @@ proc getRoleServices*(
                     ): seq[RoleService] =
     var roleServices: seq[RoleService] = @[]
     try:
-        # var collInfoQuery = sql("SELECT uid from " & serviceColl &
-        #                         " WHERE category IN ('collection', 'table') AND user_role = " &
-        #                         currentUser[1] )
-
         #  concatenate serviceIds for query computation:
         let itemIds = serviceIds.join(", ")
 
@@ -413,22 +409,23 @@ proc getRoleServices*(
         
         let queryResult = accessDb.db.getAllRows(roleQuery)
 
-        for row in queryResult:
-            roleServices.add(RoleService(
-                serviceId: row[0],
-                group: row[1],
-                category: row[2],   # coll/table, package_group, package, module, function etc.
-                canRead: strToBool(row[3]),
-                canCreate: strToBool(row[4]),
-                canUpdate: strToBool(row[5]),
-                canDelete: strToBool(row[6])
-            ))
+        if queryResult.len() > 0:           
+            for row in queryResult:
+                roleServices.add(RoleService(
+                    serviceId: row[0],
+                    group: row[1],
+                    category: row[2],   # coll/table, package_group, package, module, function etc.
+                    canRead: strToBool(row[3]),
+                    canCreate: strToBool(row[4]),
+                    canUpdate: strToBool(row[5]),
+                    canDelete: strToBool(row[6])
+                ))
         return roleServices
     except:
         return roleServices
 
 proc checkAccess*(
-                accessDb: Database; 
+                accessDb: Database;
                 userInfo: UserParam;
                 collName: string;
                 docIds: seq[string] = @[];    # for update, delete and read tasks 
@@ -476,11 +473,13 @@ proc checkAccess*(
             serviceIds.add(collInfo[0])
 
         # Get role assignment (i.e. service items permitted for the user-group)
-        var roleServices = getRoleServices(accessDb = accessDb,
+        var roleServices: seq[RoleService] = @[]
+        if serviceIds.len() > 0:
+            roleServices = getRoleServices(accessDb = accessDb,
                                         serviceIds = serviceIds,
                                         userGroup = currentUser[1],
                                         roleColl = roleColl)
-
+        
         let accessRes = CheckAccess(userId: currentUser[0],
                                     userRole: currentUser[1],
                                     userRoles: parseJson(currentUser[2]),
@@ -490,7 +489,7 @@ proc checkAccess*(
                                     )
 
         return getResMessage("success", ResponseMessage(
-                                            value: %*(accessRes), 
+                                            value: %*(accessRes),
                                             message: "Request completed successfully. ") ) 
     except:
         return getResMessage("notFound", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
@@ -514,33 +513,29 @@ proc getCurrentRecord*(appDb: Database; collName: string; whereParams: seq[Where
     except:
         return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
-proc taskPermission*(appDb: Database;
-                    collName: string;
+proc taskPermission*(accessRes: ResponseMessage;
                     taskType: string;   # "create", "update", "delete"/"remove", "read"
-                    docIds: seq[string];    # for update, delete and read tasks
-                    # whereParams: seq[WhereParam];
-                    userInfo: UserParam;
-                    accessColl: string = "accesskeys";
-                    userColl: string = "users";
-                    roleColl: string = "roles";
-                    serviceColl: string = "services";): ResponseMessage =
+                    ): ResponseMessage =
     # permit task(crud): by owner, role/group, admin => on coll/table or doc/record(s)
     try:
-        var taskPermitted, recordPermitted, tablePermitted: bool = false
+        if accessRes.code == "success":
+            echo "success"
+            var taskPermitted, recordPermitted, tablePermitted: bool = false
 
-        # table/collection level permission
-        let tableQuery = sql("SELECT * FROM ")
+            # table/collection level permission
+            let tableQuery = sql("SELECT * FROM ")
 
-        var response  = ResponseMessage(value: nil,
-                                    message: "records retrieved successfuly",
-                                    code: "success"
-                    )
-        result = getResMessage("success", response)
+            var response  = ResponseMessage(value: nil,
+                                        message: "records retrieved successfuly",
+                                        code: "success"
+                        )
+            result = getResMessage("success", response)
 
-        # record(s) level permission
+            # record(s) level permission
 
-        # record(s) owner's permissions
-
-
+            # record(s) owner's permissions
+        else:
+            echo "error"
+        
     except:
         return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
