@@ -9,6 +9,7 @@
 # 
 
 import strutils, times, algorithm
+import sequtils
 import db_postgres, json, tables
 import mcdb, mccache, mcresponse, mctranslog
 
@@ -232,13 +233,13 @@ type
 # helper procedures | # TODO: move to mcutils package
 proc strToBool*(val: string): bool =
     try:
-        if val.toLowerAscii == "true":
+        if val.toLower() == "true":
             return true
-        if val.toLowerAscii == "t":
+        if val.toLower() == "t":
             return true
-        elif val.toLowerAscii == "yes":
+        elif val.toLower() == "yes":
             return true
-        elif val.toLowerAscii == "y":
+        elif val.toLower() == "y":
             return true
         elif val.parseInt > 0:
             return true
@@ -280,8 +281,8 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
             if groupItem.fieldColl != "":
                 fieldname = groupItem.fieldColl & "." & groupItem.fieldName
 
-            case groupItem.fieldOp:
-            of "EQ", "=":
+            case groupItem.fieldOp.toLower():
+            of "eq", "=":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & fieldname & " = " & groupItem.fieldValue
                 if groupItem.groupOp != "":
@@ -289,7 +290,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
                     else:
                         fieldQuery = fieldQuery & " "
-            of "NEQ", "!=", "<>":
+            of "neq", "!=", "<>":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & " NOT " & fieldname & " = " & groupItem.fieldValue
                 if groupItem.groupOp != "":
@@ -297,13 +298,13 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
                     else:
                         fieldQuery = fieldQuery & " "
-            of "LT", "<":
+            of "lt", "<":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & fieldname & " < " & groupItem.fieldValue
                 if groupItem.groupOp != "":
                     if itemCount < itemsLen:
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
-            of "LTE", "<=":
+            of "lte", "<=":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & fieldname & " <= " & groupItem.fieldValue
                 if groupItem.groupOp != "":
@@ -311,7 +312,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
                     else:
                         fieldQuery = fieldQuery & " "
-            of "GTE", ">=":
+            of "gte", ">=":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & fieldname & " >= " & groupItem.fieldValue
                 if groupItem.groupOp != "":
@@ -319,7 +320,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery = fieldQuery & " " & groupItem.groupOp
                     else:
                         fieldQuery = fieldQuery & " "
-            of "GT", ">":
+            of "gt", ">":
                 if groupItem.fieldValue != "":
                     fieldQuery = " " & fieldQuery & fieldname & " > " & groupItem.fieldValue
                 if groupItem.groupOp != "":
@@ -515,15 +516,60 @@ proc getCurrentRecord*(appDb: Database; collName: string; whereParams: seq[Where
 
 proc taskPermission*(accessRes: ResponseMessage;
                     taskType: string;   # "create", "update", "delete"/"remove", "read"
+                    docIds: seq[string] = @[];
                     ): ResponseMessage =
     # permit task(crud): by owner, role/group, admin => on coll/table or doc/record(s)
     try:
         if accessRes.code == "success":
             echo "success"
-            var taskPermitted, recordPermitted, tablePermitted: bool = false
+            # get access info value (json) => toObject
+            let accessInfo = to(accessRes.value, CheckAccess)
+
+            let
+                userId = accessInfo.userId
+                userRole = accessInfo.userRole
+                userRoles = accessInfo.userRoles
+                isActive = accessInfo.isActive
+                isAdmin = accessInfo.isActive
+                roleServices = accessInfo.roleServices
+
+            # validate active status
+
+            #    
+            var taskPermitted, ownerPermitted, recordPermitted, tablePermitted: bool = false
 
             # table/collection level permission
-            let tableQuery = sql("SELECT * FROM ")
+            # let tableQuery = sql("SELECT * FROM ")
+
+            case taskType:
+            of "create", "insert":
+                proc collFunc(item: RoleService): bool = 
+                    (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canCreate == true)
+                # check collection/table category access
+                tablePermitted = roleServices.anyIt(collFunc(it))
+                # document access
+                proc recRoleFunc(it1: string; it2: RoleService): bool = 
+                    (it2.service_id == it1 and it2.canUpdate == true)
+
+                proc recFunc(it1: string): bool =
+                    roleServices.anyIt(recRoleFunc(it1, it))
+                
+                if docIds.len > 0:
+                    recordPermitted = docIds.allIt(recFunc(it))
+
+                # ownership (i.e. created by userId) for currentRecords (update/delete...)
+
+                
+
+            of "update":
+                echo "check-create"
+            of "delete", "remove":
+                echo "check-create"
+            of "read", "search":
+                echo "check-create"
+
+
+
 
             var response  = ResponseMessage(value: nil,
                                         message: "records retrieved successfuly",
