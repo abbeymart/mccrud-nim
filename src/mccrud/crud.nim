@@ -548,6 +548,16 @@ proc taskPermission*(accessRes: ResponseMessage;
                     (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canCreate == true)
                 # check collection/table level access
                 collPermitted = roleServices.anyIt(collFunc(it))
+            
+                # ownership (i.e. created by userId) for all currentRecords (update/delete...)
+                # var currentRecs: seq[string] = @[]
+                
+            of "update":
+                echo "check-create"
+                proc collFunc(item: RoleService): bool = 
+                    (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canUpdate == true)
+                # check collection/table level access
+                collPermitted = roleServices.anyIt(collFunc(it))
                 # document/record level access
                 proc recRoleFunc(it1: string; it2: RoleService): bool = 
                     (it2.service_id == it1 and it2.canUpdate == true)
@@ -557,16 +567,36 @@ proc taskPermission*(accessRes: ResponseMessage;
                 
                 if docIds.len > 0:
                     recordPermitted = docIds.allIt(recFunc(it))
-
-                # ownership (i.e. created by userId) for all currentRecords (update/delete...)
-                # var currentRecs: seq[string] = @[]
-                
-            of "update":
-                echo "check-create"
             of "delete", "remove":
                 echo "check-create"
+                proc collFunc(item: RoleService): bool = 
+                    (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canDelete == true)
+                # check collection/table level access
+                collPermitted = roleServices.anyIt(collFunc(it))
+                # document/record level access
+                proc recRoleFunc(it1: string; it2: RoleService): bool = 
+                    (it2.service_id == it1 and it2.canDelete == true)
+
+                proc recFunc(it1: string): bool =
+                    roleServices.anyIt(recRoleFunc(it1, it))
+                
+                if docIds.len > 0:
+                    recordPermitted = docIds.allIt(recFunc(it))
             of "read", "search":
                 echo "check-create"
+                proc collFunc(item: RoleService): bool = 
+                    (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canRead == true)
+                # check collection/table level access
+                collPermitted = roleServices.anyIt(collFunc(it))
+                # document/record level access
+                proc recRoleFunc(it1: string; it2: RoleService): bool = 
+                    (it2.service_id == it1 and it2.canRead == true)
+
+                proc recFunc(it1: string): bool =
+                    roleServices.anyIt(recRoleFunc(it1, it))
+                
+                if docIds.len > 0:
+                    recordPermitted = docIds.allIt(recFunc(it))
 
             # overall access permitted
             taskPermitted = recordPermitted or collPermitted or isAdmin
