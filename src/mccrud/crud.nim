@@ -8,8 +8,7 @@
 ##     CRUD Package - common / extendable base type/constructor & procedures
 # 
 
-import strutils, times, algorithm
-import sequtils
+import strutils, times, algorithm, sequtils
 import db_postgres, json, tables
 import mcdb, mccache, mcresponse, mctranslog
 
@@ -18,9 +17,6 @@ export mcdb, mccache, mcresponse, mctranslog
 
 # Define types
 type
-    Database = ref object
-        db: DbConn
-         
     ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database | typed
 
     UserParam* = object
@@ -40,8 +36,7 @@ type
         fieldName*: string
         fieldType*: string   # "int", "string", "bool", "boolean", "float",...
         fieldOrder*: string
-        fieldOp*: string    # GT/>, EQ/==, GTE/>=, LT/<, LTE/<=, NEQ(<>/!=), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
-        # fieldPreOp*: string     # NOT operator e.g. NOT <fieldName> <fieldOp> <fieldValue>
+        fieldOp*: string    # GT/gt/>, EQ/==, GTE/>=, LT/<, LTE/<=, NEQ(<>/!=), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
         fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
         fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
@@ -69,7 +64,7 @@ type
         collName: string    # default: "" => will use collName instead
         fieldInfo: seq[FieldInfo]   # @[] => SELECT * (all fields)
 
-    QueryTop* = object          
+    QueryTop* = object         
         topValue: Positive
         topUnit: string # number or percentage (# or %)
     
@@ -85,7 +80,6 @@ type
         orderBy*: bool
         asField*: string
 
-    
     SelectFromParam* = object
         collName*: string
         fieldInfo*: seq[FieldInfo]
@@ -94,12 +88,16 @@ type
         collName*: string
         fieldInfo*: seq[FieldInfo]
 
+    GroupParam* = object
+        fieldName*: string
+        fieldOrder*: int
+
     OrderParam* = object
-        collName: string
+        collName*: string
         fieldName*: string
         queryFunction*: QueryFunction
-        fieldOrderType*: string # "ASC" ("asc") | "DESC" ("desc")
-        functionOrderType*: string
+        fieldOrder*: string # "ASC" ("asc") | "DESC" ("desc")
+        functionOrder*: string
 
     # for aggregate query condition
     HavingParam* = object
@@ -145,17 +143,33 @@ type
         whereParams*: seq[WhereParam]
         orderParams*: seq[OrderParam]
 
-    ## Shared CRUD Operation Types
-    ##    
+    RoleService* = object
+        serviceId*: string
+        group*    : string
+        category* : string
+        canRead*  : bool
+        canCreate*: bool
+        canUpdate*: bool
+        canDelete*: bool
+    
+    CheckAccess* = object
+        userId*: string
+        userRole*: string
+        userRoles*: JsonNode
+        isActive*: bool
+        isAdmin*: bool
+        roleServices*: seq[RoleService]
+
+    ## Shared CRUD Operation Types  
     CrudParam* = ref object
-        ## collName: table/collection to insert or update record(s).
+        ## collName: table/collection to insert, update, read or delete record(s).
         collName*: string   
-        ## actionParams: @[{"fieldA": 2345, "fieldB": "abc"}], for create & update.
+        ## actionParams: @[{collName: "abc", fieldNames: @["field1", "field2"]},], for create & update.
         ## Field names and corresponding values of record(s) to insert/create or update.
         ## Field-values will be validated based on data model definition.
         ## ValueError exception will be raised for invalid value/data type 
         ##
-        actionParams*: seq[Table[string, ValueType]]
+        actionParams*: seq[QueryParam]
         ## Bulk Insert Operation: 
         ## insertToParams {collName: "abc", fieldNames: @["field1", "field2"]}
         ## For collName: "" will use the default constructor collName
@@ -166,34 +180,33 @@ type
         ## 
         selectFromParams*: seq[SelectFromParam]
         selectIntoParams*: seq[SelectIntoParam]
-        ## whereParams = @[{fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},].
-        ## The query conditions:
+        ## Query conditions
+        ## whereParams: @[{groupCat: "validLocation", groupOrder: 1, groupLinkOp: "AND", groupItems: @[]}]
+        ## groupItems = @[{collName: "testing", fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},].
         ## 
         whereParams*: seq[WhereParam]
+        # queryParams*: seq[QueryParam] => actionParams
         ## Read-only params =>
-        ## queryParams = @[{collName: "abc", fieldInfo: {fieldName: "abc", show: true}}] | @[] => SELECT * 
-        queryParams*: seq[QueryParam]
+        ##  
         subQueryParams*: SubQueryParam
         ## Combined/joined query:
         ## 
         joinQueryParams*: seq[JoinQueryParam]
         unionQueryParams*: seq[UnionQueryParam]
-        # existQueryParams*: seq[SubQueryParam] # => subQueryParams
         queryDistinct*: bool
         queryTop*: QueryTop
         # Query function
         queryFunction*: seq[QueryFunction]
-        ## orderParams = {"fieldA": "ASC", "fieldC": "DESC"}
-        ## An order-param without orderType will default to ASC (ascending-order):
-        ## {"fieldP": "" } => orderType = "ASC" (default)
+        ## orderParams = @[{collName: "testing", fieldName: "name", fieldOrder: "ASC", queryFunction: "COUNT", functionOrderr: "DESC"}] 
+        ## An order-param without orderType will default to ASC (ascending-order)
         ## 
         orderParams*: seq[OrderParam]
-        groupParams*: seq[string] ## @["fieldA", "fieldB"]
+        groupParams*: seq[GroupParam] ## @[{fieldName: ""location", fieldOrder: 1}]
         havingParams*: seq[HavingParam]
         caseParams*: seq[CaseQueryParam] 
         skip*: Positive
         limit*: Positive
-        ## Shared / Commmon
+        ## Database, audit-log and access parameters 
         ## 
         auditColl*: string
         accessColl*: string
@@ -211,24 +224,8 @@ type
         mcMessages*: Table[string, string]
         userInfo*: UserParam
         checkAccess*: bool
-        transLog*: LogParam 
-    
-    RoleService* = object
-        serviceId*  : string
-        group*    : string
-        category* : string
-        canRead*  : bool
-        canCreate*: bool
-        canUpdate*: bool
-        canDelete*: bool
-    
-    CheckAccess* = object
-        userId*: string
-        userRole*: string
-        userRoles*: JsonNode
-        isActive*: bool
-        isAdmin*: bool
-        roleServices*: seq[RoleService]
+        transLog*: LogParam
+    ##
 
 # helper procedures | # TODO: move to mcutils package
 proc strToBool*(val: string): bool =
@@ -345,21 +342,18 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
 
 # default contructor
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
-    var defaultTable = initTable[string, JsonNode]()
-    
     new result
 
     result.appDb = appDb
     result.collName = collName
     result.userInfo = userInfo
     # Create/Update
-    result.actionParams = options.getOrDefault("actionParams", @[defaultTable])
+    result.actionParams = options.getOrDefault("actionParams", @[])
     result.insertIntoParams = options.getOrDefault("insertIntoParams", @[])
     result.selectFromParams = options.getOrDefault("selectFromParams", @[])
     result.selectIntoParams = options.getOrDefault("selectIntoParams", @[])
 
     # Read
-    result.queryParams = options.getOrDefault("queryParams", @[])
     result.queryFunction = options.getOrDefault("queryFunction", @[])
     result.whereParams = options.getOrDefault("whereParams", @[])
     result.orderParams = options.getOrDefault("orderParams", @[])
@@ -387,8 +381,6 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     result.logUpdate= options.getOrDefault("logUpdate", false)
     result.logDelete = options.getOrDefault("logDelete", false)
     result.checkAccess = options.getOrDefault("checkAccess", true)
-    
-    result.mcMessages = options.getOrDefault("messages", defaultTable)
 
     # translog instance
     result.transLog = newLog(result.auditDb, result.auditColl)
