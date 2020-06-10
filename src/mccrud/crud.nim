@@ -521,22 +521,23 @@ proc taskPermission*(accessRes: ResponseMessage;
     # permit task(crud): by owner, role/group, admin => on coll/table or doc/record(s)
     try:
         if accessRes.code == "success":
-            echo "success"
             # get access info value (json) => toObject
             let accessInfo = to(accessRes.value, CheckAccess)
 
             let
-                userId = accessInfo.userId
-                userRole = accessInfo.userRole
-                userRoles = accessInfo.userRoles
+                # userId = accessInfo.userId
+                # userRole = accessInfo.userRole
+                # userRoles = accessInfo.userRoles
                 isActive = accessInfo.isActive
                 isAdmin = accessInfo.isActive
                 roleServices = accessInfo.roleServices
 
             # validate active status
+            if isActive:
+                return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Your account is not active"))
 
-            #    
-            var taskPermitted, ownerPermitted, recordPermitted, tablePermitted: bool = false
+            # validate access   
+            var taskPermitted, recordPermitted, collPermitted: bool = false
 
             # table/collection level permission
             # let tableQuery = sql("SELECT * FROM ")
@@ -545,9 +546,9 @@ proc taskPermission*(accessRes: ResponseMessage;
             of "create", "insert":
                 proc collFunc(item: RoleService): bool = 
                     (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canCreate == true)
-                # check collection/table category access
-                tablePermitted = roleServices.anyIt(collFunc(it))
-                # document access
+                # check collection/table level access
+                collPermitted = roleServices.anyIt(collFunc(it))
+                # document/record level access
                 proc recRoleFunc(it1: string; it2: RoleService): bool = 
                     (it2.service_id == it1 and it2.canUpdate == true)
 
@@ -557,10 +558,9 @@ proc taskPermission*(accessRes: ResponseMessage;
                 if docIds.len > 0:
                     recordPermitted = docIds.allIt(recFunc(it))
 
-                # ownership (i.e. created by userId) for currentRecords (update/delete...)
-
+                # ownership (i.e. created by userId) for all currentRecords (update/delete...)
+                # var currentRecs: seq[string] = @[]
                 
-
             of "update":
                 echo "check-create"
             of "delete", "remove":
@@ -568,18 +568,15 @@ proc taskPermission*(accessRes: ResponseMessage;
             of "read", "search":
                 echo "check-create"
 
+            # overall access permitted
+            taskPermitted = recordPermitted or collPermitted or isAdmin
 
-
-
-            var response  = ResponseMessage(value: nil,
-                                        message: "records retrieved successfuly",
-                                        code: "success"
-                        )
-            result = getResMessage("success", response)
-
-            # record(s) level permission
-
-            # record(s) owner's permissions
+            if taskPermitted:
+                let response  = ResponseMessage(value: nil,
+                                            message: "action authorised / permitted")
+                result = getResMessage("success", response)
+            else:
+                return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "You are not authorized to perform the requested action/task"))
         else:
             echo "error"
         
