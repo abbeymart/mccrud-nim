@@ -572,7 +572,7 @@ proc taskPermission*(accessRes: ResponseMessage;
             taskPermitted = recordPermitted or collPermitted or isAdmin
 
             if taskPermitted:
-                let response  = ResponseMessage(value: nil,
+                let response  = ResponseMessage(value: %*(taskPermitted),
                                             message: "action authorised / permitted")
                 result = getResMessage("success", response)
             else:
