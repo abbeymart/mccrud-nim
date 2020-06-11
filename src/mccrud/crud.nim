@@ -211,7 +211,7 @@ proc taskPermission*(crud: CrudParam;
                 return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Your account is not active"))
 
             # validate access   
-            var taskPermitted, recordPermitted, collPermitted: bool = false
+            var taskPermitted, ownedPermitted, recordPermitted, collPermitted: bool = false
 
             case taskType:
             of "create", "insert":
@@ -222,7 +222,23 @@ proc taskPermission*(crud: CrudParam;
             
                 # ownership (i.e. created by userId) for all currentRecords (update/delete...)
                 # perform action within the specific crud procedure
-                
+                var selectQuery = "SELECT uid, created_by, updated_by, created_date, updated_date FROM "
+                selectQuery.add(crud.collName)
+                selectQuery.add(" ")
+                var whereQuery= " WHERE uid IN ("
+                whereQuery.add(crud.docIds.join(", "))
+                whereQuery.add(" AND (")
+                whereQuery.add(" created_by = ")
+                whereQuery.add(crud.userInfo.uid)
+                whereQuery.add(") ")
+
+                var reqQuery = sql(selectQuery & " " & whereQuery)
+
+                var ownedRecs = crud.appDb.db.getAllRows(reqQuery)
+                if ownedRecs.len() == crud.docIds.len():
+                    ownedPermitted = true
+
+
             of "update":
                 echo "check-create"
                 proc collFunc(item: RoleService): bool = 
