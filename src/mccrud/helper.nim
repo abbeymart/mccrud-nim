@@ -4,6 +4,7 @@ import strutils, times, algorithm
 
 import crudtypes
 
+## strToBool procedure converts a string parameter to a boolean
 proc strToBool*(val: string): bool =
     try:
         if val.toLower() == "true":
@@ -21,12 +22,14 @@ proc strToBool*(val: string): bool =
     except:
         return false
 
+## strToTime converts time from string to Time format
 proc strToTime*(val: string): Time =
     try:
         result = fromUnix(val.parseInt)
     except:
         return Time()
 
+## computeWhereQuery compose WHERE quesy from the whereParams
 proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
     # initialize variable to compose where-query
     var whereQuery = " WHERE "

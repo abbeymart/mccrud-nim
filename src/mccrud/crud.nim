@@ -16,7 +16,7 @@ export db_postgres, json, tables
 export mcdb, mccache, mcresponse, mctranslog
 export helper, crudtypes
 
-# default contructor
+## Default CRUD contructor returns the instance/object for CRUD task(s)
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
     new result
 
@@ -61,6 +61,7 @@ proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: T
     # translog instance
     result.transLog = newLog(result.auditDb, result.auditColl)
 
+## getRoleServices retur the role-service records for the authorized user and transactions
 proc getRoleServices*(
                     accessDb: Database;
                     userGroup: string;
@@ -93,6 +94,7 @@ proc getRoleServices*(
     except:
         return roleServices
 
+## checkAccess validate if current CRUD task is permitted based on defined/assiged roles
 proc checkAccess*(
                 accessDb: Database;
                 userInfo: UserParam;
@@ -163,6 +165,7 @@ proc checkAccess*(
     except:
         return getResMessage("notFound", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
+## getCurrentRecord returns the current records for the CRUD task
 proc getCurrentRecord*(appDb: Database; collName: string; whereParams: seq[WhereParam]): ResponseMessage =
     try:
         # compose query statement based on the whereParams
@@ -182,6 +185,7 @@ proc getCurrentRecord*(appDb: Database; collName: string; whereParams: seq[Where
     except:
         return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
+## taskPermission determines if the current CRUD task is permitted
 proc taskPermission*(accessRes: ResponseMessage;
                     taskType: string;   # "create", "update", "delete"/"remove", "read"
                     docIds: seq[string] = @[];
