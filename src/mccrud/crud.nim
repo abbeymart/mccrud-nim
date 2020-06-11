@@ -1,344 +1,20 @@
-#
 #                   mconnect solutions
 #        (c) Copyright 2020 Abi Akindele (mconnect.biz)
 #
 #    See the file "LICENSE.md", included in this
 #    distribution, for details a bout the copyright / license.
 # 
-##     CRUD Package - common / extendable base type/constructor & procedures
-# 
+##     CRUD Package - common / extendable base constructor & procedures
+## 
 
-import strutils, times, algorithm, sequtils
+import strutils, times, sequtils
 import db_postgres, json, tables
 import mcdb, mccache, mcresponse, mctranslog
+import helper, crudtypes
 
 export db_postgres, json, tables
 export mcdb, mccache, mcresponse, mctranslog
-
-# Define types
-type
-    ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database | typed
-
-    UserParam* = object
-        uid*: string
-        loginName*: string
-        email*: string
-        token*: string
-
-    # fieldValue(s) are string type for params parsing convenience,
-    # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
-    # fieldOp: GT, EQ, GTE, LT, LTE, NEQ(<>), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
-    # groupOp/groupLinkOp: AND | OR
-    # groupCat: user-defined, e.g. "age-policy", "demo-group"
-    # groupOrder: user-defined e.g. 1, 2...
-    FieldInfo* = object
-        fieldColl*: string
-        fieldName*: string
-        fieldType*: string   # "int", "string", "bool", "boolean", "float",...
-        fieldOrder*: string
-        fieldOp*: string    # GT/gt/>, EQ/==, GTE/>=, LT/<, LTE/<=, NEQ(<>/!=), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
-        fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
-        fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
-        fieldValues*: seq[string] # values for IN/NOTIN operator
-        fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
-        groupOp*: string     # e.g. AND | OR...
-        fieldAlias*: string # for SELECT/Read query
-        show*: bool     # include or exclude from the SELECT query fields
-        fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
-
-    WhereParam* = object
-        groupCat*: string
-        groupLinkOp*: string
-        groupOrder*: int
-        groupItems*: seq[FieldInfo]
-
-    # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER defined
-    # fieldNames => specify one field for all except custom/user function,
-    # the fieldType must match the argument types expected by the functionType 
-    # otherwise the only the first function-matching field will be used, as applicable
-    QueryFunction* = object
-        functionType*: string
-        fieldInfo*: seq[FieldInfo]
-        
-    QueryParam* = object
-        collName: string    # default: "" => will use collName instead
-        fieldInfo: seq[FieldInfo]   # @[] => SELECT * (all fields)
-
-    QueryTop* = object         
-        topValue: Positive
-        topUnit: string # number or percentage (# or %)
-    
-    CaseCondition* = object
-        fieldInfo*: seq[FieldInfo]
-        resultMessage*: string
-        resultField*: string  # for ORDER BY options
-
-    CaseQueryParam* = object
-        conditions*: seq[CaseCondition]
-        defaultField*: string   # for ORDER BY options
-        defaultMessage*: string 
-        orderBy*: bool
-        asField*: string
-
-    SelectFromParam* = object
-        collName*: string
-        fieldInfo*: seq[FieldInfo]
-
-    InsertIntoParam* = object
-        collName*: string
-        fieldInfo*: seq[FieldInfo]
-
-    GroupParam* = object
-        fieldName*: string
-        fieldOrder*: int
-
-    OrderParam* = object
-        collName*: string
-        fieldName*: string
-        queryFunction*: QueryFunction
-        fieldOrder*: string # "ASC" ("asc") | "DESC" ("desc")
-        functionOrder*: string
-
-    # for aggregate query condition
-    HavingParam* = object
-        collName: string
-        queryFunction*: QueryFunction
-        queryOp*: string
-        queryOpValue*: string # value will be cast to fieldType in queryFunction
-        orderType*: string # "ASC" ("asc") | "DESC" ("desc")
-        # subQueryParams*: SubQueryParam # for ANY, ALL, EXISTS...
-
-    SubQueryParam* = object
-        whereType*: string   # EXISTS, ANY, ALL
-        whereField*: string  # for ANY / ALL | Must match the fieldName in queryParam
-        whereOp*: string     # e.g. "=" for ANY / ALL
-        queryParams*: QueryParam
-        queryWhereParams*: WhereParam
-
-    # combined/joined query (read) param-type
-    JoinSelectField* =  object
-        collName*: string
-        collFields*: seq[FieldInfo]
-    
-    JoinField* = object
-        collName*: string
-        joinField*: string
-
-    JoinQueryParam* = object
-        selectFromColl*: string # default to collName
-        selectFields*: seq[JoinSelectField]
-        joinType*: string # INNER (JOIN), OUTER (LEFT, RIGHT & FULL), SELF...
-        joinFields*: seq[JoinField] # [{collName: "abc", joinField: "field1" },]
-    
-    SelectIntoParam* = object
-        selectFields*: seq[FieldInfo] # @[] => SELECT *
-        intoColl*: string          # new table/collection
-        fromColl*: string          # old/external table/collection
-        fromFilename*: string      # IN external DB file, e.g. backup.mdb
-        whereParam*: seq[WhereParam]
-        joinParam*: JoinQueryParam # for copying from more than one table/collection
-
-    UnionQueryParam* = object
-        selectQueryParams*: seq[QueryParam]
-        whereParams*: seq[WhereParam]
-        orderParams*: seq[OrderParam]
-
-    RoleService* = object
-        serviceId*: string
-        group*    : string
-        category* : string
-        canRead*  : bool
-        canCreate*: bool
-        canUpdate*: bool
-        canDelete*: bool
-    
-    CheckAccess* = object
-        userId*: string
-        userRole*: string
-        userRoles*: JsonNode
-        isActive*: bool
-        isAdmin*: bool
-        roleServices*: seq[RoleService]
-
-    ## Shared CRUD Operation Types  
-    CrudParam* = ref object
-        ## collName: table/collection to insert, update, read or delete record(s).
-        collName*: string   
-        ## actionParams: @[{collName: "abc", fieldNames: @["field1", "field2"]},], for create & update.
-        ## Field names and corresponding values of record(s) to insert/create or update.
-        ## Field-values will be validated based on data model definition.
-        ## ValueError exception will be raised for invalid value/data type 
-        ##
-        actionParams*: seq[QueryParam]
-        ## Bulk Insert Operation: 
-        ## insertToParams {collName: "abc", fieldNames: @["field1", "field2"]}
-        ## For collName: "" will use the default constructor collName
-        insertIntoParams*: seq[InsertIntoParam]
-        ## selectFromParams =
-        ## {collName: "abc", fieldNames: @["field1", "field2"]}
-        ## the order and types of insertIntoParams' & selectFromParams' fields must match, otherwise ValueError exception will occur
-        ## 
-        selectFromParams*: seq[SelectFromParam]
-        selectIntoParams*: seq[SelectIntoParam]
-        ## Query conditions
-        ## whereParams: @[{groupCat: "validLocation", groupOrder: 1, groupLinkOp: "AND", groupItems: @[]}]
-        ## groupItems = @[{collName: "testing", fieldName: "ab", fieldOp: ">=", groupOp: "AND(and)", order: 1, fieldType: "integer", filedValue: "10"},].
-        ## 
-        whereParams*: seq[WhereParam]
-        # queryParams*: seq[QueryParam] => actionParams
-        ## Read-only params =>
-        ##  
-        subQueryParams*: SubQueryParam
-        ## Combined/joined query:
-        ## 
-        joinQueryParams*: seq[JoinQueryParam]
-        unionQueryParams*: seq[UnionQueryParam]
-        queryDistinct*: bool
-        queryTop*: QueryTop
-        # Query function
-        queryFunction*: seq[QueryFunction]
-        ## orderParams = @[{collName: "testing", fieldName: "name", fieldOrder: "ASC", queryFunction: "COUNT", functionOrderr: "DESC"}] 
-        ## An order-param without orderType will default to ASC (ascending-order)
-        ## 
-        orderParams*: seq[OrderParam]
-        groupParams*: seq[GroupParam] ## @[{fieldName: ""location", fieldOrder: 1}]
-        havingParams*: seq[HavingParam]
-        caseParams*: seq[CaseQueryParam] 
-        skip*: Positive
-        limit*: Positive
-        ## Database, audit-log and access parameters 
-        ## 
-        auditColl*: string
-        accessColl*: string
-        serviceColl*: string
-        roleColl*: string
-        userColl*: string
-        appDb*: Database
-        accessDb*: Database
-        auditDb*: Database
-        logAll*: bool
-        logRead*: bool
-        logCreate*: bool
-        logUpdate*: bool
-        logDelete*: bool
-        mcMessages*: Table[string, string]
-        userInfo*: UserParam
-        checkAccess*: bool
-        transLog*: LogParam
-    ##
-
-# helper procedures | # TODO: move to mcutils package
-proc strToBool*(val: string): bool =
-    try:
-        if val.toLower() == "true":
-            return true
-        if val.toLower() == "t":
-            return true
-        elif val.toLower() == "yes":
-            return true
-        elif val.toLower() == "y":
-            return true
-        elif val.parseInt > 0:
-            return true
-        else:
-            return false 
-    except:
-        return false
-
-proc strToTime*(val: string): Time =
-    try:
-        result = fromUnix(val.parseInt)
-    except:
-        return Time()
-
-proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
-    # initialize variable to compose where-query
-    var whereQuery = "WHERE "
-
-    # sort whereParams by groupOrder (ASC)
-    var sortedGroups  = whereParams.sortedByIt(it.groupOrder)
-    let groupsLen = sortedGroups.len()
-
-    # variables to determine the end of groups and group-items
-    var groupCount, itemCount = 0
-
-    # iterate through whereParams (groups)
-    for group in sortedGroups:
-        groupCount += 1
-
-        # sort groupCat items by fieldOrder (ASC)
-        var sortedItems  = group.groupItems.sortedByIt(it.fieldOrder)
-        let itemsLen = sortedItems.len()
-
-        # compute the field-where-script
-        var fieldQuery = "("
-        for groupItem in sortedItems:
-            itemCount += 1
-            var fieldname = groupItem.fieldName
-            if groupItem.fieldColl != "":
-                fieldname = groupItem.fieldColl & "." & groupItem.fieldName
-
-            case groupItem.fieldOp.toLower():
-            of "eq", "=":
-                if groupItem.fieldValue != "":
-                    fieldQuery = " " & fieldQuery & fieldname & " = " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-            of "neq", "!=", "<>":
-                if groupItem.fieldValue != "":
-                    fieldQuery = " " & fieldQuery & " NOT " & fieldname & " = " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-            of "lt", "<":
-                if groupItem.fieldValue != "":
-                    fieldQuery = " " & fieldQuery & fieldname & " < " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-            of "lte", "<=":
-                if groupItem.fieldValue != "":
-                    fieldQuery = " " & fieldQuery & fieldname & " <= " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-            of "gte", ">=":
-                if groupItem.fieldValue != "":
-                    fieldQuery = " " & fieldQuery & fieldname & " >= " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-            of "gt", ">":
-                if groupItem.fieldValue != "":
-                    fieldQuery = " " & fieldQuery & fieldname & " > " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-
-        # add closing bracket to complete the group-items query/script
-        fieldQuery = fieldQuery & " )"
-        
-        # add optional groupLinkOp, if groupLen > 1
-        if groupCount < groupsLen and group.groupLinkOp != "":
-            fieldQuery = fieldQuery & " " & group.groupLinkOp.toUpperAscii() & " "
-        elif groupCount < groupsLen and group.groupLinkOp == "":
-            fieldQuery = fieldQuery & " AND "   # default groupLinkOp => AND
-        else:
-            fieldQuery = fieldQuery & " "
-            
-        # compute where-script from the group-script, append in sequence by groupOrder 
-        whereQuery = whereQuery & " " & fieldQuery
+export helper, crudtypes
 
 # default contructor
 proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
@@ -396,7 +72,7 @@ proc getRoleServices*(
         #  concatenate serviceIds for query computation:
         let itemIds = serviceIds.join(", ")
 
-        var roleQuery = sql("SELECT service_id, group, category, can_create, can_update, can_read, can_delete FROM " &
+        var roleQuery = sql("SELECT service_id, group, category, can_create, can_read, can_update, can_delete FROM " &
                          roleColl & " WHERE group = " & userGroup & " AND service_id IN (" & itemIds & ") " &
                          " AND is_active = true")
         
@@ -408,8 +84,8 @@ proc getRoleServices*(
                     serviceId: row[0],
                     group: row[1],
                     category: row[2],   # coll/table, package_group, package, module, function etc.
-                    canRead: strToBool(row[3]),
-                    canCreate: strToBool(row[4]),
+                    canCreate: strToBool(row[3]),
+                    canRead: strToBool(row[4]),
                     canUpdate: strToBool(row[5]),
                     canDelete: strToBool(row[6])
                 ))
@@ -477,7 +153,7 @@ proc checkAccess*(
                                     userRole: currentUser[1],
                                     userRoles: parseJson(currentUser[2]),
                                     isActive: strToBool(currentUser[3]),
-                                    isAdmin: parseJson(currentUser[4]){"isAdmin"}.getBool(false),
+                                    isAdmin: parseJson(currentUser[4]){"is_dmin"}.getBool(false),
                                     roleServices: roleServices
                                     )
 
