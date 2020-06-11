@@ -169,9 +169,10 @@ proc checkAccess*(
 proc getCurrentRecord*(appDb: Database; collName: string; queryParams: QueryParam; whereParams: seq[WhereParam]): ResponseMessage =
     try:
         # compose query statement based on the whereParams
+        var selectQuery = computeSelectQuery(collName, queryParams)
         var whereQuery = computeWhereQuery(whereParams)
 
-        var reqQuery = sql("SELECT * FROM " & collName & " " & whereQuery)
+        var reqQuery = sql(selectQuery & " " & whereQuery)
 
         var reqResult = appDb.db.getAllRows(reqQuery)
 
@@ -186,12 +187,13 @@ proc getCurrentRecord*(appDb: Database; collName: string; queryParams: QueryPara
         return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 ## taskPermission determines if the current CRUD task is permitted
-proc taskPermission*(accessRes: ResponseMessage;
+proc taskPermission*(crud: CrudParam;
                     taskType: string;   # "create", "update", "delete"/"remove", "read"
-                    docIds: seq[string] = @[];
                     ): ResponseMessage =
     # permit task(crud): by owner, role/group, admin => on coll/table or doc/record(s)
     try:
+        var accessRes = checkAccess(accessDb = crud.accessDb, collName = crud.collName,
+                                    docIds = crud.docIds, userInfo = crud.userInfo )
         if accessRes.code == "success":
             # get access info value (json) => toObject
             let accessInfo = to(accessRes.value, CheckAccess)
@@ -219,7 +221,7 @@ proc taskPermission*(accessRes: ResponseMessage;
                 collPermitted = roleServices.anyIt(collFunc(it))
             
                 # ownership (i.e. created by userId) for all currentRecords (update/delete...)
-                # var currentRecs: seq[string] = @[]
+                # perform action within the specific crud procedure
                 
             of "update":
                 echo "check-create"
@@ -234,8 +236,8 @@ proc taskPermission*(accessRes: ResponseMessage;
                 proc recFunc(it1: string): bool =
                     roleServices.anyIt(recRoleFunc(it1, it))
                 
-                if docIds.len > 0:
-                    recordPermitted = docIds.allIt(recFunc(it))
+                if crud.docIds.len > 0:
+                    recordPermitted = crud.docIds.allIt(recFunc(it))
             of "delete", "remove":
                 echo "check-create"
                 proc collFunc(item: RoleService): bool = 
@@ -249,8 +251,8 @@ proc taskPermission*(accessRes: ResponseMessage;
                 proc recFunc(it1: string): bool =
                     roleServices.anyIt(recRoleFunc(it1, it))
                 
-                if docIds.len > 0:
-                    recordPermitted = docIds.allIt(recFunc(it))
+                if crud.docIds.len > 0:
+                    recordPermitted = crud.docIds.allIt(recFunc(it))
             of "read", "search":
                 echo "check-create"
                 proc collFunc(item: RoleService): bool = 
@@ -264,8 +266,8 @@ proc taskPermission*(accessRes: ResponseMessage;
                 proc recFunc(it1: string): bool =
                     roleServices.anyIt(recRoleFunc(it1, it))
                 
-                if docIds.len > 0:
-                    recordPermitted = docIds.allIt(recFunc(it))
+                if crud.docIds.len > 0:
+                    recordPermitted = crud.docIds.allIt(recFunc(it))
 
             # overall access permitted
             taskPermitted = recordPermitted or collPermitted or isAdmin

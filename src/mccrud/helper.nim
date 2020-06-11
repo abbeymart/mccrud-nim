@@ -30,7 +30,7 @@ proc strToTime*(val: string): Time =
         return Time()
 
 ## computeSelectQuery compose SELECT query from the queryParam
-proc computeSelectQuery*(queryParam: QueryParam): string =
+proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: string = "simple"): string =
     # initialize variable to compose the select-query
     var selectQuery = "SELECT"
     var sortedFields: seq[FieldItem] = @[]
@@ -38,8 +38,10 @@ proc computeSelectQuery*(queryParam: QueryParam): string =
     var unspecifiedFieldNameCount = 0 # variable to determine unspecified fieldNames
 
     try:
-        if queryParam.fieldItems.len() < 1:
-            selectQuery.add(" * ")
+        if queryParam.fieldItems.len() == 0 or queryParam.fieldItems.len() < 1:
+            selectQuery.add(" * FROM ")
+            selectQuery.add(collName)
+            selectQuery.add(" ")
             return selectQuery
         elif queryParam.fieldItems.len() == 1:
             sortedFields = queryParam.fieldItems
@@ -54,14 +56,27 @@ proc computeSelectQuery*(queryParam: QueryParam): string =
             if fieldItem.fieldName == "":
                 unspecifiedFieldNameCount += 1
                 continue
-
-            if fieldItem.fieldColl != "":
-                # selectQuery = selectQuery & " " & fieldItem.fieldColl & "." & fieldItem.fieldName & " "
+            
+            case queryType:
+            of "simple":
                 selectQuery.add(" ")
-                selectQuery.add(fieldItem.fieldColl)
-                selectQuery.add(".")
                 selectQuery.add(fieldItem.fieldName)
                 selectQuery.add(", ")
+            of "cases":
+                echo "case-query"
+                if fieldItem.fieldColl != "":
+                    # selectQuery = selectQuery & " " & fieldItem.fieldColl & "." & fieldItem.fieldName & " "
+                    selectQuery.add(" ")
+                    selectQuery.add(fieldItem.fieldColl)
+                    selectQuery.add(".")
+                    selectQuery.add(fieldItem.fieldName)
+                    selectQuery.add(", ")
+                else:
+                    selectQuery.add(" ")
+                    selectQuery.add(fieldItem.fieldName)
+                    selectQuery.add(", ")
+            of "join":
+                echo "join-query"
             else:
                 selectQuery.add(" ")
                 selectQuery.add(fieldItem.fieldName)
@@ -72,6 +87,11 @@ proc computeSelectQuery*(queryParam: QueryParam): string =
             raise newException(ValueError, "error: no field-names specified")
             # return "error: no field-names specified"
         
+        # add table/collection to select from
+        selectQuery.add(" FROM ")
+        selectQuery.add(collName)
+        selectQuery.add(" ")
+
         return selectQuery
 
     except:

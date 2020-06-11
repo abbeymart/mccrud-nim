@@ -157,7 +157,8 @@ type
     ## Shared CRUD Operation Types  
     CrudParam* = ref object
         ## collName: table/collection to insert, update, read or delete record(s).
-        collName*: string   
+        collName*: string 
+        docIds*: seq[string]  # for update, delete and read tasks
         ## actionParams: @[{collName: "abc", fieldNames: @["field1", "field2"]},], for create & update.
         ## Field names and corresponding values of record(s) to insert/create or update.
         ## Field-values will be validated based on data model definition.
