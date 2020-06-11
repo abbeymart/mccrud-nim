@@ -280,7 +280,6 @@ proc taskPermission*(accessRes: ResponseMessage;
             else:
                 return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "You are not authorized to perform the requested action/task"))
         else:
-            echo "error"
-        
+            return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "You are not authorized to perform the requested action/task"))
     except:
-        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
+        return getResMessage("unAuthorized", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
