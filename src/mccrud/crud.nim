@@ -166,7 +166,7 @@ proc checkAccess*(
         return getResMessage("notFound", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 ## getCurrentRecord returns the current records for the CRUD task
-proc getCurrentRecord*(appDb: Database; collName: string; whereParams: seq[WhereParam]): ResponseMessage =
+proc getCurrentRecord*(appDb: Database; collName: string; queryParams: QueryParam; whereParams: seq[WhereParam]): ResponseMessage =
     try:
         # compose query statement based on the whereParams
         var whereQuery = computeWhereQuery(whereParams)
@@ -214,7 +214,7 @@ proc taskPermission*(accessRes: ResponseMessage;
             case taskType:
             of "create", "insert":
                 proc collFunc(item: RoleService): bool = 
-                    (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canCreate == true)
+                    (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canCreate)
                 # check collection/table level access
                 collPermitted = roleServices.anyIt(collFunc(it))
             
@@ -224,7 +224,7 @@ proc taskPermission*(accessRes: ResponseMessage;
             of "update":
                 echo "check-create"
                 proc collFunc(item: RoleService): bool = 
-                    (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canUpdate == true)
+                    (item.category.toLower() == "collection" or item.category.toLower() == "table") and (item.canUpdate)
                 # check collection/table level access
                 collPermitted = roleServices.anyIt(collFunc(it))
                 # document/record level access

@@ -25,7 +25,7 @@ type
     # groupOp/groupLinkOp: AND | OR
     # groupCat: user-defined, e.g. "age-policy", "demo-group"
     # groupOrder: user-defined e.g. 1, 2...
-    FieldInfo* = object
+    FieldItem* = object
         fieldColl*: string
         fieldName*: string
         fieldType*: string   # "int", "string", "bool", "boolean", "float",...
@@ -44,7 +44,7 @@ type
         groupCat*: string
         groupLinkOp*: string
         groupOrder*: int
-        groupItems*: seq[FieldInfo]
+        groupItems*: seq[FieldItem]
 
     # functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER defined
     # fieldNames => specify one field for all except custom/user function,
@@ -52,18 +52,18 @@ type
     # otherwise the only the first function-matching field will be used, as applicable
     QueryFunction* = object
         functionType*: string
-        fieldInfo*: seq[FieldInfo]
+        fieldItems*: seq[FieldItem]
         
     QueryParam* = object
-        collName: string    # default: "" => will use collName instead
-        fieldInfo: seq[FieldInfo]   # @[] => SELECT * (all fields)
+        collName*: string    # default: "" => will use collName instead
+        fieldItems*: seq[FieldItem]   # @[] => SELECT * (all fields)
 
     QueryTop* = object         
-        topValue: Positive
-        topUnit: string # number or percentage (# or %)
+        topValue*: Positive
+        topUnit*: string # number or percentage (# or %)
     
     CaseCondition* = object
-        fieldInfo*: seq[FieldInfo]
+        fieldItems*: seq[FieldItem]
         resultMessage*: string
         resultField*: string  # for ORDER BY options
 
@@ -76,11 +76,11 @@ type
 
     SelectFromParam* = object
         collName*: string
-        fieldInfo*: seq[FieldInfo]
+        fieldItems*: seq[FieldItem]
 
     InsertIntoParam* = object
         collName*: string
-        fieldInfo*: seq[FieldInfo]
+        fieldItems*: seq[FieldItem]
 
     GroupParam* = object
         fieldName*: string
@@ -112,7 +112,7 @@ type
     # combined/joined query (read) param-type
     JoinSelectField* =  object
         collName*: string
-        collFields*: seq[FieldInfo]
+        collFields*: seq[FieldItem]
     
     JoinField* = object
         collName*: string
@@ -125,7 +125,7 @@ type
         joinFields*: seq[JoinField] # [{collName: "abc", joinField: "field1" },]
     
     SelectIntoParam* = object
-        selectFields*: seq[FieldInfo] # @[] => SELECT *
+        selectFields*: seq[FieldItem] # @[] => SELECT *
         intoColl*: string          # new table/collection
         fromColl*: string          # old/external table/collection
         fromFilename*: string      # IN external DB file, e.g. backup.mdb

@@ -29,92 +29,166 @@ proc strToTime*(val: string): Time =
     except:
         return Time()
 
-## computeWhereQuery compose WHERE quesy from the whereParams
+## computeSelectQuery compose SELECT query from the queryParam
+proc computeSelectQuery*(queryParam: QueryParam): string =
+    # initialize variable to compose the select-query
+    var selectQuery = "SELECT"
+    var sortedFields: seq[FieldItem] = @[]
+    var fieldLen = 0           
+    var unspecifiedFieldNameCount = 0 # variable to determine unspecified fieldNames
+
+    try:
+        if queryParam.fieldItems.len() < 1:
+            selectQuery.add(" * ")
+            return selectQuery
+        elif queryParam.fieldItems.len() == 1:
+            sortedFields = queryParam.fieldItems
+        else:
+            # sort queryParam.fieldItems by fieldOrder (ASC)
+            sortedFields  = queryParam.fieldItems.sortedByIt(it.fieldOrder)
+            fieldLen = sortedFields.len()
+
+        # iterate through sortedFields and compose select-query/script
+        for fieldItem in sortedFields:
+            # check groupItems length
+            if fieldItem.fieldName == "":
+                unspecifiedFieldNameCount += 1
+                continue
+
+            if fieldItem.fieldColl != "":
+                # selectQuery = selectQuery & " " & fieldItem.fieldColl & "." & fieldItem.fieldName & " "
+                selectQuery.add(" ")
+                selectQuery.add(fieldItem.fieldColl)
+                selectQuery.add(".")
+                selectQuery.add(fieldItem.fieldName)
+                selectQuery.add(", ")
+            else:
+                selectQuery.add(" ")
+                selectQuery.add(fieldItem.fieldName)
+                selectQuery.add(", ")
+
+        # raise exception or return empty select statement , if no fieldName was specified
+        if(unspecifiedFieldNameCount == fieldLen):
+            raise newException(ValueError, "error: no field-names specified")
+            # return "error: no field-names specified"
+        
+        return selectQuery
+
+    except:
+        # raise exception or return empty select statement, for exception/error
+        raise newException(ValueError, getCurrentExceptionMsg())
+        # return ("error: " & getCurrentExceptionMsg())
+
+## computeWhereQuery compose WHERE query from the whereParams
 proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
     # initialize variable to compose where-query
     var whereQuery = " WHERE "
+    var groupsLen = 0
+    var unspecifiedFieldNameCount = 0 # variable to determine unspecified fieldNames
 
-    # sort whereParams by groupOrder (ASC)
-    var sortedGroups  = whereParams.sortedByIt(it.groupOrder)
-    let groupsLen = sortedGroups.len()
+    try:
+        groupsLen = whereParams.len()
 
-    # variables to determine the end of groups and group-items
-    var groupCount, itemCount = 0
-
-    # iterate through whereParams (groups)
-    for group in sortedGroups:
-        groupCount += 1
-
-        # sort groupCat items by fieldOrder (ASC)
-        var sortedItems  = group.groupItems.sortedByIt(it.fieldOrder)
-        let itemsLen = sortedItems.len()
-
-        # compute the field-where-script
-        var fieldQuery = " ("
-        for groupItem in sortedItems:
-            itemCount += 1
-            var fieldname = groupItem.fieldName
-            if groupItem.fieldColl != "":
-                fieldname = groupItem.fieldColl & "." & groupItem.fieldName
-
-            case groupItem.fieldOp.toLower():
-            of "eq", "=":
-                if groupItem.fieldValue != "":
-                    fieldQuery = fieldQuery & fieldname & " = " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-            of "neq", "!=", "<>":
-                if groupItem.fieldValue != "":
-                    fieldQuery = fieldQuery & " NOT " & fieldname & " = " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-            of "lt", "<":
-                if groupItem.fieldValue != "":
-                    fieldQuery = fieldQuery & fieldname & " < " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-            of "lte", "<=":
-                if groupItem.fieldValue != "":
-                    fieldQuery = fieldQuery & fieldname & " <= " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-            of "gte", ">=":
-                if groupItem.fieldValue != "":
-                    fieldQuery = fieldQuery & fieldname & " >= " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-            of "gt", ">":
-                if groupItem.fieldValue != "":
-                    fieldQuery = fieldQuery & fieldname & " > " & groupItem.fieldValue
-                if groupItem.groupOp != "":
-                    if itemCount < itemsLen:
-                        fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    else:
-                        fieldQuery = fieldQuery & " "
-
-        # add closing bracket to complete the group-items query/script
-        fieldQuery = fieldQuery & " )"
+        # raise exception or return empty select statement , if no group was specified
+        if(groupsLen == 0 or groupsLen < 1):
+            raise newException(ValueError, "error: no where-groups specified")
+            # return "error: no where-groups specified"
         
-        # add optional groupLinkOp, if groupLen > 1
-        if groupCount < groupsLen and group.groupLinkOp != "":
-            fieldQuery = fieldQuery & " " & group.groupLinkOp.toUpperAscii() & " "
-        elif groupCount < groupsLen and group.groupLinkOp == "":
-            fieldQuery = fieldQuery & " AND "   # default groupLinkOp => AND
-        else:
-            fieldQuery = fieldQuery & " "
+        # sort whereParams by groupOrder (ASC)
+        var sortedGroups  = whereParams.sortedByIt(it.groupOrder)
+
+        # variables to determine the end of groups and group-items
+        var groupCount, itemCount = 0
+
+        # iterate through whereParams (groups)
+        for group in sortedGroups:
+            groupCount += 1
+            let itemsLen = group.groupItems.len()
+            # check groupItems length
+            if itemsLen == 0 or itemsLen < 1:
+                continue
+
+            # sort groupCat items by fieldOrder (ASC)
+            var sortedItems  = group.groupItems.sortedByIt(it.fieldOrder)
+
+            # compute the field-where-script
+            var fieldQuery = " ("
+            for groupItem in sortedItems:
+                itemCount += 1
+                # check groupItems length
+                if groupItem.fieldName == "":
+                    unspecifiedFieldNameCount += 1
+                    continue
+
+                var fieldname = groupItem.fieldName
+                if groupItem.fieldColl != "":
+                    fieldname = groupItem.fieldColl & "." & groupItem.fieldName
+
+                case groupItem.fieldOp.toLower():
+                of "eq", "=":
+                    if groupItem.fieldValue != "":
+                        fieldQuery = fieldQuery & fieldname & " = " & groupItem.fieldValue
+                    if groupItem.groupOp != "":
+                        if itemCount < itemsLen:
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                        else:
+                            fieldQuery = fieldQuery & " "
+                of "neq", "!=", "<>":
+                    if groupItem.fieldValue != "":
+                        fieldQuery = fieldQuery & " NOT " & fieldname & " = " & groupItem.fieldValue
+                    if groupItem.groupOp != "":
+                        if itemCount < itemsLen:
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                        else:
+                            fieldQuery = fieldQuery & " "
+                of "lt", "<":
+                    if groupItem.fieldValue != "":
+                        fieldQuery = fieldQuery & fieldname & " < " & groupItem.fieldValue
+                    if groupItem.groupOp != "":
+                        if itemCount < itemsLen:
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                of "lte", "<=":
+                    if groupItem.fieldValue != "":
+                        fieldQuery = fieldQuery & fieldname & " <= " & groupItem.fieldValue
+                    if groupItem.groupOp != "":
+                        if itemCount < itemsLen:
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                        else:
+                            fieldQuery = fieldQuery & " "
+                of "gte", ">=":
+                    if groupItem.fieldValue != "":
+                        fieldQuery = fieldQuery & fieldname & " >= " & groupItem.fieldValue
+                    if groupItem.groupOp != "":
+                        if itemCount < itemsLen:
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                        else:
+                            fieldQuery = fieldQuery & " "
+                of "gt", ">":
+                    if groupItem.fieldValue != "":
+                        fieldQuery = fieldQuery & fieldname & " > " & groupItem.fieldValue
+                    if groupItem.groupOp != "":
+                        if itemCount < itemsLen:
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                        else:
+                            fieldQuery = fieldQuery & " "
+
+            # add closing bracket to complete the group-items query/script or continue
+            if unspecifiedFieldNameCount == itemCount:
+                continue
+                
+            fieldQuery = fieldQuery & " )"
             
-        # compute where-script from the group-script, append in sequence by groupOrder 
-        whereQuery = whereQuery & " " & fieldQuery
+            # add optional groupLinkOp, if groupLen > 1
+            if groupCount < groupsLen and group.groupLinkOp != "":
+                fieldQuery = fieldQuery & " " & group.groupLinkOp.toUpperAscii() & " "
+            elif groupCount < groupsLen and group.groupLinkOp == "":
+                fieldQuery = fieldQuery & " AND "   # default groupLinkOp => AND
+            else:
+                fieldQuery = fieldQuery & " "
+                
+            # compute where-script from the group-script, append in sequence by groupOrder 
+            whereQuery = whereQuery & " " & fieldQuery
+
+    except:
+        # return empty select statement, for exception/error
+        return ("error: " & getCurrentExceptionMsg())
