@@ -132,7 +132,7 @@ proc checkAccess*(
 
         # if all the above checks passed, check for role-services access by taskType
         # check access by taskType
-        # obtain collName - collId (uid) from serviceColl/table
+        # obtain collName - collId (uid) from serviceColl/Table
         var collInfoQuery = sql("SELECT uid from " & serviceColl &
                                 " WHERE name = " & collName )
 
@@ -202,17 +202,14 @@ proc taskPermission*(accessRes: ResponseMessage;
                 # userRoles = accessInfo.userRoles
                 isActive = accessInfo.isActive
                 isAdmin = accessInfo.isActive
-                roleServices = accessInfo.roleServices
+                roleServices = accessInfo.roleServices # TODO: check value: object or parsed-json (transform to object)
 
             # validate active status
-            if isActive:
+            if not isActive:
                 return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Your account is not active"))
 
             # validate access   
             var taskPermitted, recordPermitted, collPermitted: bool = false
-
-            # table/collection level permission
-            # let tableQuery = sql("SELECT * FROM ")
 
             case taskType:
             of "create", "insert":
