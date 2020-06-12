@@ -187,12 +187,14 @@ proc getCurrentRecord*(appDb: Database; collName: string; queryParams: QueryPara
         return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 ## taskPermission determines if the current CRUD task is permitted
+## permission options: by owner, by record/role-assignment, by table/collection or by admin
+## 
 proc taskPermission*(crud: CrudParam;
                     taskType: string;   # "create", "update", "delete"/"remove", "read"
                     ): ResponseMessage =
-    # permit task(crud): by owner, role/group, admin => on coll/table or doc/record(s)
+    # permit task(crud): by owner, role/group (on coll/table or doc/record(s)) or admin 
     try:
-        # validate access, variables   
+        # validation access variables   
         var taskPermitted, ownerPermitted, recordPermitted, collPermitted, isAdmin: bool = false
 
         # ownership (i.e. created by userId) for all currentRecords (update/delete...)
@@ -239,7 +241,6 @@ proc taskPermission*(crud: CrudParam;
             proc recordFunc(item: RoleService): bool = 
                     (item.category.toLower() == "record" or item.category.toLower() == "document")
                 
-            
             let roleTables = roleServices.filter(tableFunc)
             let roleRecords = roleServices.filter(recordFunc)
 
