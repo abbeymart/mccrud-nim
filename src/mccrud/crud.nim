@@ -259,7 +259,7 @@ proc taskPermission*(crud: CrudParam;
                 collPermitted = roleTables.allIt(collFunc(it))
                 # document/record level access
                 proc recRoleFunc(it1: string; it2: RoleService): bool = 
-                    (it2.service_id == it1 and it2.canUpdate == true)
+                    (it2.service_id == it1 and it2.canUpdate)
 
                 proc recFunc(it1: string): bool =
                     roleRecords.anyIt(recRoleFunc(it1, it))
@@ -273,7 +273,7 @@ proc taskPermission*(crud: CrudParam;
                 collPermitted = roleTables.allIt(collFunc(it))
                 # document/record level access
                 proc recRoleFunc(it1: string; it2: RoleService): bool = 
-                    (it2.service_id == it1 and it2.canDelete == true)
+                    (it2.service_id == it1 and it2.canDelete)
 
                 proc recFunc(it1: string): bool =
                     roleRecords.anyIt(recRoleFunc(it1, it))
@@ -288,7 +288,7 @@ proc taskPermission*(crud: CrudParam;
                 collPermitted = roleTables.allIt(collFunc(it))
                 # document/record level access
                 proc recRoleFunc(it1: string; it2: RoleService): bool = 
-                    (it2.service_id == it1 and it2.canRead == true)
+                    (it2.service_id == it1 and it2.canRead)
 
                 proc recFunc(it1: string): bool =
                     roleRecords.anyIt(recRoleFunc(it1, it))
