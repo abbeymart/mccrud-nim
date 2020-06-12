@@ -30,6 +30,7 @@ proc strToTime*(val: string): Time =
         return Time()
 
 ## computeSelectQuery compose SELECT query from the queryParam
+## queryType => simple, join, cases, subquery, combined etc.
 proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: string = "simple"): string =
     # initialize variable to compose the select-query
     var selectQuery = "SELECT"
