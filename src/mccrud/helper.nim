@@ -51,20 +51,22 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
             sortedFields  = queryParam.fieldItems.sortedByIt(it.fieldOrder)
             fieldLen = sortedFields.len()
 
-        # iterate through sortedFields and compose select-query/script
-        for fieldItem in sortedFields:
-            # check groupItems length
-            if fieldItem.fieldName == "":
-                unspecifiedFieldNameCount += 1
-                continue
-            
-            case queryType:
-            of "simple":
+        # iterate through sortedFields and compose select-query/script, by queryType
+        case queryType:
+        of "simple":
+            for fieldItem in sortedFields:
+                # check fieldName
+                if fieldItem.fieldName == "":
+                    unspecifiedFieldNameCount += 1
+                    continue
                 selectQuery.add(" ")
                 selectQuery.add(fieldItem.fieldName)
                 selectQuery.add(", ")
-            of "cases":
-                echo "case-query"
+        of "cases":
+            for fieldItem in sortedFields:
+                if fieldItem.fieldName == "":
+                    unspecifiedFieldNameCount += 1
+                    continue        
                 if fieldItem.fieldColl != "":
                     # selectQuery = selectQuery & " " & fieldItem.fieldColl & "." & fieldItem.fieldName & " "
                     selectQuery.add(" ")
@@ -76,13 +78,11 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
                     selectQuery.add(" ")
                     selectQuery.add(fieldItem.fieldName)
                     selectQuery.add(", ")
-            of "join":
-                echo "join-query"
-            else:
-                selectQuery.add(" ")
-                selectQuery.add(fieldItem.fieldName)
-                selectQuery.add(", ")
-
+        of "join":
+            echo "join"
+        else:
+            echo "default"
+        
         # raise exception or return empty select statement , if no fieldName was specified
         if(unspecifiedFieldNameCount == fieldLen):
             raise newException(ValueError, "error: no field-names specified")
