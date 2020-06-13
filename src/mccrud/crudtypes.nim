@@ -41,6 +41,10 @@ type
         show*: bool     # include or exclude from the SELECT query fields
         fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
 
+    # WhereInSelect = object
+    #     selectColl*: string
+    #     selectField*: FieldItem
+
     WhereParam* = object
         groupCat*: string
         groupLinkOp*: string

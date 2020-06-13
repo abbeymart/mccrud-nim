@@ -53,7 +53,7 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
             fieldLen = sortedFields.len()
 
         # iterate through sortedFields and compose select-query/script, by queryType
-        case queryType:
+        case queryType.toLower():
         of "simple":
             var fieldCount = 0      # fieldCount: determine the current field count 
             for fieldItem in sortedFields:
@@ -68,7 +68,7 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
                     selectQuery.add(", ")
                 else:
                     selectQuery.add(" ")
-        of "multi":
+        of "coll.field", "table.field":
             var fieldCount = 0
             for fieldItem in sortedFields:
                 fieldCount += 1
@@ -166,7 +166,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                     if groupItem.fieldValue != "":
                         fieldQuery = fieldQuery & fieldname & " = " & groupItem.fieldValue
                     if groupItem.groupOp != "":
-                        if itemCount < itemsLen:
+                        if itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                         else:
                             fieldQuery = fieldQuery & " "
@@ -223,7 +223,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
             
             # add optional groupLinkOp, if groupLen > 1
             if groupCount < groupsLen and group.groupLinkOp != "":
-                fieldQuery = fieldQuery & " " & group.groupLinkOp.toUpperAscii() & " "
+                fieldQuery = fieldQuery & " " & group.groupLinkOp.toUpper() & " "
             elif groupCount < groupsLen and group.groupLinkOp == "":
                 fieldQuery = fieldQuery & " AND "   # default groupLinkOp => AND
             else:
