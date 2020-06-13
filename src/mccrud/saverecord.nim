@@ -32,6 +32,11 @@ proc newSaveRecord*(appDb: Database;
 
 proc saveRecord*(crud: CrudParam) =
     echo "save-record"
+    # check permission
+
+    # save-record(s): new records, docIds = @[]
+
+    # update-record(s): existing record(s), docIds != @[]
 
 proc createRecord*() =
     echo "create-record"

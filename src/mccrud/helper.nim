@@ -45,7 +45,8 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
             selectQuery.add(" ")
             return selectQuery
         elif queryParam.fieldItems.len() == 1:
-            sortedFields = queryParam.fieldItems
+            sortedFields = queryParam.fieldItems    # no sorting required for one item
+            fieldLen = 1
         else:
             # sort queryParam.fieldItems by fieldOrder (ASC)
             sortedFields  = queryParam.fieldItems.sortedByIt(it.fieldOrder)
@@ -54,32 +55,47 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
         # iterate through sortedFields and compose select-query/script, by queryType
         case queryType:
         of "simple":
+            var fieldCount = 0      # fieldCount: determine the current field count 
             for fieldItem in sortedFields:
+                fieldCount += 1
                 # check fieldName
                 if fieldItem.fieldName == "":
                     unspecifiedFieldNameCount += 1
                     continue
                 selectQuery.add(" ")
                 selectQuery.add(fieldItem.fieldName)
-                selectQuery.add(", ")
-        of "cases":
+                if fieldLen > 1 and fieldCount < fieldLen:
+                    selectQuery.add(", ")
+                else:
+                    selectQuery.add(" ")
+        of "multi":
+            var fieldCount = 0
             for fieldItem in sortedFields:
+                fieldCount += 1
+                # check fieldName
                 if fieldItem.fieldName == "":
                     unspecifiedFieldNameCount += 1
                     continue        
                 if fieldItem.fieldColl != "":
-                    # selectQuery = selectQuery & " " & fieldItem.fieldColl & "." & fieldItem.fieldName & " "
                     selectQuery.add(" ")
                     selectQuery.add(fieldItem.fieldColl)
                     selectQuery.add(".")
                     selectQuery.add(fieldItem.fieldName)
-                    selectQuery.add(", ")
+                    if fieldLen > 1 and fieldCount < fieldLen:
+                        selectQuery.add(", ")
+                    else:
+                        selectQuery.add(" ")
                 else:
                     selectQuery.add(" ")
                     selectQuery.add(fieldItem.fieldName)
-                    selectQuery.add(", ")
+                    if fieldLen > 1 and fieldCount < fieldLen:
+                        selectQuery.add(", ")
+                    else:
+                        selectQuery.add(" ")
         of "join":
             echo "join"
+        of "cases":
+            echo "cases"
         else:
             echo "default"
         
@@ -192,6 +208,12 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                         else:
                             fieldQuery = fieldQuery & " "
+                of "in", "includes":
+                    echo "in params = values and select-query"
+                    if groupItem.fieldValues != @[]:
+                        echo "in-values"
+                    elif groupItem.fieldSubQuery != @[]:
+                        echo "in-sub-query"
 
             # add closing bracket to complete the group-items query/script or continue
             if unspecifiedFieldNameCount == itemCount:
