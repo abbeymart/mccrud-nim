@@ -17,14 +17,18 @@ export mcdb, mccache, mcresponse, mctranslog
 export helper, crudtypes
 
 ## Default CRUD contructor returns the instance/object for CRUD task(s)
-proc newCrud*(appDb: Database; collName: string; userInfo: UserParam; options: Table[string, ValueType]): CrudParam =
+proc newCrud*(appDb: Database; 
+            collName: string; 
+            userInfo: UserParam;
+            actionParams: seq[QueryParam]; 
+            options: Table[string, ValueType]): CrudParam =
     new result
 
     result.appDb = appDb
     result.collName = collName
     result.userInfo = userInfo
+    result.actionParams = actionParams
     # Create/Update
-    result.actionParams = options.getOrDefault("actionParams", @[])
     result.insertIntoParams = options.getOrDefault("insertIntoParams", @[])
     result.selectFromParams = options.getOrDefault("selectFromParams", @[])
     result.selectIntoParams = options.getOrDefault("selectIntoParams", @[])

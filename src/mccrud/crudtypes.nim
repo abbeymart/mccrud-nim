@@ -6,7 +6,7 @@
 # 
 ##                   CRUD Package types
 ##
-import json, tables
+import json, tables, db_postgres
 import mcdb, mctranslog
 
 # Define crud types
@@ -219,4 +219,10 @@ type
         userInfo*: UserParam
         checkAccess*: bool
         transLog*: LogParam
+        isRecExist*: bool
+        isAuthorized*: bool
+        currentRecords*: seq[Row]
+        roleServices*: seq[RoleService]
+        recExistMessage*: string
+        unAuthMessage*: string
     ##
