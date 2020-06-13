@@ -164,50 +164,40 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                 case groupItem.fieldOp.toLower():
                 of "eq", "=":
                     if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " = " & groupItem.fieldValue
+                        fieldQuery = fieldQuery & fieldname & " = " & "'" & groupItem.fieldValue & "'"
                     if groupItem.groupOp != "":
                         if itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
-                        else:
-                            fieldQuery = fieldQuery & " "
                 of "neq", "!=", "<>":
                     if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & " NOT " & fieldname & " = " & groupItem.fieldValue
+                        fieldQuery = fieldQuery & fieldname & " <> " & "'" & groupItem.fieldValue & "'"
                     if groupItem.groupOp != "":
-                        if itemCount < itemsLen:
+                        if itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
-                        else:
-                            fieldQuery = fieldQuery & " "
                 of "lt", "<":
                     if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " < " & groupItem.fieldValue
+                        fieldQuery = fieldQuery & fieldname & " < " & "'" & groupItem.fieldValue & "'"
                     if groupItem.groupOp != "":
-                        if itemCount < itemsLen:
+                        if itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "lte", "<=":
                     if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " <= " & groupItem.fieldValue
+                        fieldQuery = fieldQuery & fieldname & " <= " & "'" & groupItem.fieldValue & "'"
                     if groupItem.groupOp != "":
-                        if itemCount < itemsLen:
+                        if itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
-                        else:
-                            fieldQuery = fieldQuery & " "
                 of "gte", ">=":
                     if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " >= " & groupItem.fieldValue
+                        fieldQuery = fieldQuery & fieldname & " >= " & "'" & groupItem.fieldValue & "'"
                     if groupItem.groupOp != "":
-                        if itemCount < itemsLen:
+                        if itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
-                        else:
-                            fieldQuery = fieldQuery & " "
                 of "gt", ">":
                     if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " > " & groupItem.fieldValue
+                        fieldQuery = fieldQuery & fieldname & " > " & "'" & groupItem.fieldValue & "'"
                     if groupItem.groupOp != "":
-                        if itemCount < itemsLen:
+                        if itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
-                        else:
-                            fieldQuery = fieldQuery & " "
                 of "in", "includes":
                     echo "in params = values and select-query"
                     if groupItem.fieldValues != @[]:
@@ -221,10 +211,10 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                 
             fieldQuery = fieldQuery & " )"
             
-            # add optional groupLinkOp, if groupLen > 1
-            if groupCount < groupsLen and group.groupLinkOp != "":
+            # add optional groupLinkOp, if groupsLen > 1
+            if groupsLen > 1 and groupCount < groupsLen and group.groupLinkOp != "":
                 fieldQuery = fieldQuery & " " & group.groupLinkOp.toUpper() & " "
-            elif groupCount < groupsLen and group.groupLinkOp == "":
+            elif groupsLen > 1 and groupCount < groupsLen and group.groupLinkOp == "":
                 fieldQuery = fieldQuery & " AND "   # default groupLinkOp => AND
             else:
                 fieldQuery = fieldQuery & " "
