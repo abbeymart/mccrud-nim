@@ -34,6 +34,7 @@ type
         fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
         fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
+        fieldSubQuery*: seq[QueryParam]
         fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
         groupOp*: string     # e.g. AND | OR...
         fieldAlias*: string # for SELECT/Read query
@@ -57,6 +58,7 @@ type
     QueryParam* = object
         collName*: string    # default: "" => will use collName instead
         fieldItems*: seq[FieldItem]   # @[] => SELECT * (all fields)
+        whereParams*: seq[WhereParam]
 
     QueryTop* = object         
         topValue*: Positive
