@@ -41,6 +41,11 @@ type
         show*: bool     # include or exclude from the SELECT query fields
         fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
 
+    CollItem* = object
+        collName*: string
+        collAlias*: string
+        collOrder*: int
+
     # WhereInSelect = object
     #     selectColl*: string
     #     selectField*: FieldItem
@@ -60,7 +65,7 @@ type
         fieldItems*: seq[FieldItem]
         
     QueryParam* = object
-        collName*: string    # default: "" => will use collName instead
+        collName*: string    # default: @[] => will use collName instead
         fieldItems*: seq[FieldItem]   # @[] => SELECT * (all fields)
         whereParams*: seq[WhereParam]
 

@@ -204,7 +204,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                     let fieldWhereQuery = computeWhereQuery(fieldSubQuery.whereParams)
                     let fieldInSelectQuery = fieldSelectQuery & " " & fieldWhereQuery
 
-                    if groupItem.fieldValues != @[]:
+                    if groupItem.fieldValues.len() > 0:
                         # compose the IN values from fieldValues
                         var inValues = "("
                         for itemValue in groupItem.fieldValues:
