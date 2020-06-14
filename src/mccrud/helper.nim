@@ -203,16 +203,27 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                     let fieldSelectQuery = computeSelectQuery(fieldSubQuery.collName, fieldSubQuery)
                     let fieldWhereQuery = computeWhereQuery(fieldSubQuery.whereParams)
                     let fieldInSelectQuery = fieldSelectQuery & " " & fieldWhereQuery
-                    
+
                     if groupItem.fieldValues != @[]:
+                        # compose the IN values from fieldValues
+                        var inValues = "("
+                        for itemValue in groupItem.fieldValues:
+                            if groupItem.fieldType == "string":
+                                inValues.add("'")
+                                inValues.add(itemValue)
+                                inValues.add("'")
+                                inValues.add(", ")
+                            elif groupItem.fieldType == "int" or groupItem.fieldType == "float":
+                                inValues.add(itemValue)
+                                inValues.add(", ")
                         if groupItem.fieldValue != "":
-                            fieldQuery = fieldQuery & fieldname & " > " & "'" & groupItem.fieldValue & "'"
+                            fieldQuery = fieldQuery & fieldname & " IN " & inValues
                         if groupItem.groupOp != "":
                             if itemsLen > 1 and itemCount < itemsLen:
                                 fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    elif groupItem.fieldSubQuery != QueryParam():
+                    elif groupItem.fieldSubQuery.collName != "":
                         if groupItem.fieldValue != "":
-                            fieldQuery = fieldQuery & fieldname & " > " & "'" & groupItem.fieldValue & "'"
+                            fieldQuery = fieldQuery & fieldname & " IN " & (fieldInSelectQuery)  & "'"
                         if groupItem.groupOp != "":
                             if itemsLen > 1 and itemCount < itemsLen:
                                 fieldQuery = fieldQuery & " " & groupItem.groupOp
