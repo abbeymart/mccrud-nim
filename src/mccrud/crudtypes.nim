@@ -34,7 +34,7 @@ type
         fieldValue*: string  # for insert/update | start value for range/BETWEEN/NOTBETWEEN and pattern for LIKE operators
         fieldValueEnd*: string   # end value for range/BETWEEN/NOTBETWEEN operator
         fieldValues*: seq[string] # values for IN/NOTIN operator
-        fieldSubQuery*: seq[QueryParam] # for WHERE IN (SELECT field from fieldColl)
+        fieldSubQuery*: QueryParam # for WHERE IN (SELECT field from fieldColl)
         fieldPostOp*: string # EXISTS, ANY or ALL e.g. WHERE fieldName <fieldOp> <fieldPostOp> <anyAllQueryParams>
         groupOp*: string     # e.g. AND | OR...
         fieldAlias*: string # for SELECT/Read query

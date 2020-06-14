@@ -199,11 +199,23 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         if itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "in", "includes":
-                    echo "in params = values and select-query"
+                    let fieldSubQuery = groupItem.fieldSubQuery
+                    let fieldSelectQuery = computeSelectQuery(fieldSubQuery.collName, fieldSubQuery)
+                    let fieldWhereQuery = computeWhereQuery(fieldSubQuery.whereParams)
+                    let fieldInSelectQuery = fieldSelectQuery & " " & fieldWhereQuery
+                    
                     if groupItem.fieldValues != @[]:
-                        echo "in-values"
-                    elif groupItem.fieldSubQuery != @[]:
-                        echo "in-sub-query"
+                        if groupItem.fieldValue != "":
+                            fieldQuery = fieldQuery & fieldname & " > " & "'" & groupItem.fieldValue & "'"
+                        if groupItem.groupOp != "":
+                            if itemsLen > 1 and itemCount < itemsLen:
+                                fieldQuery = fieldQuery & " " & groupItem.groupOp
+                    elif groupItem.fieldSubQuery != QueryParam():
+                        if groupItem.fieldValue != "":
+                            fieldQuery = fieldQuery & fieldname & " > " & "'" & groupItem.fieldValue & "'"
+                        if groupItem.groupOp != "":
+                            if itemsLen > 1 and itemCount < itemsLen:
+                                fieldQuery = fieldQuery & " " & groupItem.groupOp
 
             # add closing bracket to complete the group-items query/script or continue
             if unspecifiedFieldNameCount == itemCount:
