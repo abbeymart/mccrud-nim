@@ -16,51 +16,87 @@ export db_postgres, json, tables
 export mcdb, mccache, mcresponse, mctranslog
 export helper, crudtypes
 
+var defaultQueryTop = QueryTop()
+
 ## Default CRUD contructor returns the instance/object for CRUD task(s)
 proc newCrud*(appDb: Database; 
             collName: string; 
             userInfo: UserParam;
-            actionParams: seq[QueryParam]; 
+            actionParams: seq[QueryParam] = @[];
+            queryParams: seq[QueryParam] = @[];
+            whereParams: seq[WhereParam] = @[];
+            inserIntoParams: seq[InsertIntoParam] = @[];
+            selectFromParams: seq[SelectFromParam] = @[];
+            selectIntoParams: seq[SelectIntoParam] = @[];
+            queryFunctions: seq[QueryFunction] = @[];
+            orderParams: seq[OrderParam] = @[];
+            groupParams: seq[GroupParam]  = @[];
+            havingParams: seq[HavingParam] = @[];
+            caseParams: seq[CaseQueryParam]  = @[];
+            subQueryParams: seq[SubQueryParam] = @[];
+            joinQueryParams: seq[JoinQueryParam] = @[];
+            unionQueryParams: seq[UnionQueryParam] = @[];
+            queryDistinct: bool = false;
+            queryTop: QueryTop = QueryTop();
+            skip: Positive = 0;
+            limit: Positive = 100000;
+            auditColl: string = "audits";
+            accessColl: string = "accesskeys";
+            serviceColl: string = "services";
+            roleColl: string = "roles";
+            userColl: string = "users";
+            accessDb: Database = appDb;
+            auditDb: Database = appDb;
+            logAll: bool = false;
+            logRead: bool = false;
+            logCreate: bool = false;
+            logUpdate: bool = false;
+            logDelete: bool = false;
+            checkAccess: bool = false;
+            transLog: LogParam = LogParam(auditDb: auditDb, auditColl: auditColl);
             options: Table[string, ValueType]): CrudParam =
+    
     new result
 
     result.appDb = appDb
     result.collName = collName
     result.userInfo = userInfo
     result.actionParams = actionParams
+    result.queryParams = queryParams
+   
     # Create/Update
-    result.insertIntoParams = options.getOrDefault("insertIntoParams", @[])
-    result.selectFromParams = options.getOrDefault("selectFromParams", @[])
-    result.selectIntoParams = options.getOrDefault("selectIntoParams", @[])
+    result.insertIntoParams = inserIntoParams
+    result.selectFromParams = selectFromParams
+    result.selectIntoParams = selectIntoParams
 
     # Read
-    result.queryFunction = options.getOrDefault("queryFunction", @[])
-    result.whereParams = options.getOrDefault("whereParams", @[])
-    result.orderParams = options.getOrDefault("orderParams", @[])
-    result.groupParams = options.getOrDefault("groupParams", @[])
-    result.havingParams = options.getOrDefault("havingParams", @[])
-    result.queryDistinct = options.getOrDefault("queryDistinct", false)
-    result.queryTop= options.getOrDefault("queryTop", QueryTop())
-    result.joinQueryParams = options.getOrDefault("joinQueryParams", @[])
-    result.unionQueryParams = options.getOrDefault("unionQueryParams", @[])
-    result.caseQueryParams = options.getOrDefault("caseQueryParams", @[])
-    result.skip = options.getOrDefault("skip", 0)
-    result.limit = options.getOrDefault("limit" ,100000)
+    result.queryFunctions = queryFunctions
+    result.whereParams = whereParams
+    result.orderParams = orderParams
+    result.groupParams = groupParams
+    result.havingParams = havingParams
+    result.queryDistinct = queryDistinct
+    result.queryTop= queryTop
+    result.joinQueryParams = joinQueryParams
+    result.unionQueryParams = unionQueryParams
+    result.caseParams = caseParams
+    result.skip = skip
+    result.limit = limit
 
     # Shared
-    result.auditColl = options.getOrDefault("auditColl", "audits")
-    result.accessColl = options.getOrDefault("accessColl", "accesskeys")
-    result.auditColl = options.getOrDefault("servicecoll", "services")
-    result.roleColl = options.getOrDefault("roleColl", "roles")
-    result.userColl = options.getOrDefault("userColl", "users")
-    result.auditDb = options.getOrDefault("auditDb", appDb)
-    result.accessDb = options.getOrDefault("acessDb", appDb)
-    result.logAll = options.getOrDefault("logAll", false)
-    result.logRead = options.getOrDefault("logRead", false)
-    result.logCreate = options.getOrDefault("logCreate", false)
-    result.logUpdate= options.getOrDefault("logUpdate", false)
-    result.logDelete = options.getOrDefault("logDelete", false)
-    result.checkAccess = options.getOrDefault("checkAccess", true)
+    result.auditColl = auditColl
+    result.accessColl = accessColl
+    result.auditColl = auditColl
+    result.roleColl = roleColl
+    result.userColl = userColl
+    result.auditDb = auditDb
+    result.accessDb = accessDb
+    result.logAll = logAll
+    result.logRead = logRead
+    result.logCreate = logCreate
+    result.logUpdate= logUpdate
+    result.logDelete = logDelete
+    result.checkAccess = checkAccess
 
     # translog instance
     result.transLog = newLog(result.auditDb, result.auditColl)
@@ -193,9 +229,8 @@ proc getCurrentRecord*(appDb: Database; collName: string; queryParams: QueryPara
 ## taskPermission determines if the current CRUD task is permitted
 ## permission options: by owner, by record/role-assignment, by table/collection or by admin
 ## 
-proc taskPermission*(crud: CrudParam;
-                    taskType: string;   # "create", "update", "delete"/"remove", "read"
-                    ): ResponseMessage =
+proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
+    # taskType: "create", "update", "delete"/"remove", "read"
     # permit task(crud): by owner, role/group (on coll/table or doc/record(s)) or admin 
     try:
         # validation access variables   

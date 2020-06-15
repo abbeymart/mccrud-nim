@@ -20,7 +20,7 @@ proc newSaveRecord*(appDb: Database;
                     actionParams: seq[QueryParam]; 
                     options: Table[string, ValueType]): CrudParam =
     # base shared constructor variable
-    result = newCrud(appDb, collName, userInfo, actionParams, options )
+    result = newCrud(appDb, collName, userInfo, actionParams = actionParams, options )
     # specific/sub-set constructor variable
     result.docIds = @[]
     result.currentRecords = @[]
@@ -32,7 +32,14 @@ proc newSaveRecord*(appDb: Database;
 
 proc saveRecord*(crud: CrudParam) =
     echo "save-record"
-    # check permission
+
+    # determine taskType from actionParams: create or update
+    # check the key:value pairs for uid (update) / no-uid (create) keys
+    var 
+        createRecords = crud.actionParams
+        updateRecords = crud.actionParams
+
+    # check permission based on the create and/or update records
 
     # save-record(s): new records, docIds = @[]
 

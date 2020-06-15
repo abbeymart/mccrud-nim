@@ -70,7 +70,7 @@ type
         whereParams*: seq[WhereParam]
 
     QueryTop* = object         
-        topValue*: Positive
+        topValue*: int
         topUnit*: string # number or percentage (# or %)
     
     CaseCondition* = object
@@ -202,7 +202,7 @@ type
         queryDistinct*: bool
         queryTop*: QueryTop
         # Query function
-        queryFunction*: seq[QueryFunction]
+        queryFunctions*: seq[QueryFunction]
         ## orderParams = @[{collName: "testing", fieldName: "name", fieldOrder: "ASC", queryFunction: "COUNT", functionOrderr: "DESC"}] 
         ## An order-param without orderType will default to ASC (ascending-order)
         ## 
