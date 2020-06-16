@@ -11,7 +11,7 @@ import mcdb, mctranslog
 
 # Define crud types
 type
-    ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database | typed
+    ValueType = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database | typed
 
     UserParam* = object
         uid*: string
@@ -41,7 +41,7 @@ type
         show*: bool     # include or exclude from the SELECT query fields
         fieldFunction*: string # COUNT, MIN, MAX... for select/read-query...
 
-    CollItem* = object
+    CollItem = object
         collName*: string
         collAlias*: string
         collOrder*: int

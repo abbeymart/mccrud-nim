@@ -16,8 +16,6 @@ export db_postgres, json, tables
 export mcdb, mccache, mcresponse, mctranslog
 export helper, crudtypes
 
-var defaultQueryTop = QueryTop()
-
 ## Default CRUD contructor returns the instance/object for CRUD task(s)
 proc newCrud*(appDb: Database; 
             collName: string; 
