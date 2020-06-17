@@ -32,16 +32,35 @@ proc newSaveRecord*(appDb: Database;
 
 proc saveRecord*(crud: CrudParam) =
     # determine taskType from actionParams: create or update
-    # check the key:value pairs for uid (update) / no-uid (create) keys
+    # iterate through actionParams, add record to createRecs or updateRecs
     var 
-        createRecords = crud.actionParams   # include records with fieldName != "uid"
-        updateRecords = crud.actionParams   # include records with fieldName == "uid"
+        createRecs: seq[FieldItem] = @[]   # include records with fieldName != "uid"
+        updateRecs: seq[FieldItem] = @[]  # include records with fieldName == "uid"
 
-    # check permission based on the create and/or update records
+    for rec in crud.actionParams:
+        for field in rec.fieldItems:
+            if field.fieldName == "uid":
+                updateRecs.add(field)
+            else:
+                createRecs.add(field)
 
-    # save-record(s): new records, docIds = @[]
+    # save-record(s): new records, docIds = @[], for createRecs.len > 0
+    if createRecs.len > 0:
+        echo "process create"
+        # check permission based on the create and/or update records
+        var taskPermit = taskPermission(crud, "create")
+        let taskValue = taskPermit.value{"ok"}.getBool(false)
+        if taskValue and taskPermit.code == "success":
+            echo "process task"
 
-    # update-record(s): existing record(s), docIds != @[]
+    # update-record(s): existing record(s), docIds != @[], for updateRecs.len > 0
+    if updateRecs.len > 0:
+        echo "process update"
+        # check permission based on the create and/or update records
+        var taskPermit = taskPermission(crud, "update")
+        let taskValue = taskPermit.value{"ok"}.getBool(false)
+        if taskValue and taskPermit.code == "success":
+            echo "process task"
 
 proc createRecord*() =
     echo "create-record"

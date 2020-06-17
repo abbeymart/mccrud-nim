@@ -335,13 +335,15 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
 
         # overall access permitted
         taskPermitted = recordPermitted or collPermitted or ownerPermitted or isAdmin
-        
+        let ok = OkayResponse(ok: taskPermitted)
         if taskPermitted:
-            let response  = ResponseMessage(value: %*(taskPermitted),
+            let response  = ResponseMessage(value: %*(ok),
                                             message: "action authorised / permitted")
             result = getResMessage("success", response)
         else:
-            return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "You are not authorized to perform the requested action/task"))
+            let ok = OkayResponse(ok: false)
+            return getResMessage("unAuthorized", ResponseMessage(value: %*(ok), message: "You are not authorized to perform the requested action/task"))
     except:
-        return getResMessage("unAuthorized", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
+        let ok = OkayResponse(ok: false)
+        return getResMessage("unAuthorized", ResponseMessage(value: %*(ok), message: getCurrentExceptionMsg()))
     

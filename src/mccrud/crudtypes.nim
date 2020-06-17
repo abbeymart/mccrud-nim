@@ -165,6 +165,9 @@ type
         isAdmin*: bool
         roleServices*: seq[RoleService]
 
+    OkayResponse* = object
+        ok*: bool
+
     ## Shared CRUD Operation Types  
     CrudParam* = ref object
         ## collName: table/collection to insert, update, read or delete record(s).
