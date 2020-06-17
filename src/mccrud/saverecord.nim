@@ -31,13 +31,11 @@ proc newSaveRecord*(appDb: Database;
     result.unAuthMessage = "Action / task not authorised or permitted "
 
 proc saveRecord*(crud: CrudParam) =
-    echo "save-record"
-
     # determine taskType from actionParams: create or update
     # check the key:value pairs for uid (update) / no-uid (create) keys
     var 
-        createRecords = crud.actionParams
-        updateRecords = crud.actionParams
+        createRecords = crud.actionParams   # include records with fieldName != "uid"
+        updateRecords = crud.actionParams   # include records with fieldName == "uid"
 
     # check permission based on the create and/or update records
 
