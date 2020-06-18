@@ -33,11 +33,12 @@ proc newSaveRecord*(appDb: Database;
     result.unAuthMessage = "Action / task not authorised or permitted "
 
 
-proc createRecord(rec: seq[QueryParam]): ResponseMessage =
+proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
     try:
-        # create script
-
-        # create/insert action
+        # create script from rec param
+        var createScripts:seq[string] = computeCreateScript(crud.collName, rec)
+        
+         # perform create/insert action
 
         # if action was successful task audit log
 
@@ -47,11 +48,12 @@ proc createRecord(rec: seq[QueryParam]): ResponseMessage =
         let ok = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(ok), message: getCurrentExceptionMsg()))  
 
-proc updateRecord(rec: seq[QueryParam]): ResponseMessage =
+proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
     try:
-        # create script
-
-        # create/insert action
+        # create script from rec param
+        var updateScripts: seq[string] = computeUpdateScript(crud.collName, rec, crud.docIds)
+        
+        # perform update action
 
         # if action was successful task audit log
 
@@ -91,9 +93,8 @@ proc saveRecord*(crud: CrudParam): ResponseMessage =
             var taskPermit = taskPermission(crud, "create")
             let taskValue = taskPermit.value{"ok"}.getBool(false)
             if taskValue and taskPermit.code == "success":
-                echo "process task"
-                # TODO: compose insert SQL
-                return createRecord(createRecs)
+                # create/insert new record(s)
+                return createRecord(crud, createRecs)
             else:
                 return taskPermit
 
@@ -104,8 +105,8 @@ proc saveRecord*(crud: CrudParam): ResponseMessage =
             let taskValue = taskPermit.value{"ok"}.getBool(false)
             if taskValue and taskPermit.code == "success":
                 echo "process task"
-                # TODO: compose update SQL
-                return updateRecord(updateRecs)
+                # update existing record(s)
+                return updateRecord(crud, updateRecs)
             else:
                 return taskPermit
     except:

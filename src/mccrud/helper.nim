@@ -248,3 +248,82 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
     except:
         # return empty select statement, for exception/error
         return ("error: " & getCurrentExceptionMsg())
+
+## createScript compose insert SQL script
+## 
+proc computeCreateScript*(collName: string, queryParams: seq[QueryParam]): seq[string] =
+    # create script from rec param
+        var createScripts: seq[string] = @[]
+        
+        for item in queryParams:
+            var itemScript = "INSERT INTO " & collName
+            var itemValues = " VALUES("
+            var 
+                fieldCount = 0
+                missingField = 0
+            for field in item.fieldItems:
+                fieldCount += 1
+                # check missing fieldName/Value
+                if field.fieldName == "" or field.fieldValue == "":
+                    missingField += 1
+                    continue
+                itemScript.add(" ")
+                itemScript.add(field.fieldName)
+                if fieldCount < item.fieldItems.len:
+                    itemScript.add(", ")
+                else:
+                    itemScript.add(" ")
+                case field.fieldType
+                of "string", "uuid":
+                    itemValues.add("'")
+                    itemValues.add(field.fieldValue)
+                    itemValues.add("'")
+                else:
+                    itemValues.add(field.fieldValue)
+                if fieldCount < item.fieldItems.len:
+                    itemValues.add(", ")
+                else:
+                    itemValues.add(" ")
+            if missingField < fieldCount:
+                createScripts.add(itemScript)
+        
+## updateScript compose update SQL script
+## 
+proc computeUpdateScript*(collName: string, queryParams: seq[QueryParam], docIds: seq[string]): seq[string] =
+    # create script from rec param
+        var updateScripts: seq[string] = @[]
+        
+        for item in queryParams:
+            var itemScript = "INSERT INTO " & collName
+            var itemValues = " VALUES("
+            var 
+                fieldCount = 0
+                missingField = 0
+            for field in item.fieldItems:
+                fieldCount += 1
+                # check missing fieldName/Value
+                if field.fieldName == "" or field.fieldValue == "":
+                    missingField += 1
+                    continue
+                itemScript.add(" ")
+                itemScript.add(field.fieldName)
+                if fieldCount < item.fieldItems.len:
+                    itemScript.add(", ")
+                else:
+                    itemScript.add(" ")
+                case field.fieldType
+                of "string", "uuid":
+                    itemValues.add("'")
+                    itemValues.add(field.fieldValue)
+                    itemValues.add("'")
+                else:
+                    itemValues.add(field.fieldValue)
+                if fieldCount < item.fieldItems.len:
+                    itemValues.add(", ")
+                else:
+                    itemValues.add(" ")
+            if missingField < fieldCount:
+                updateScripts.add(itemScript)
+
+## deleteScript compose delete SQL script
+## 
