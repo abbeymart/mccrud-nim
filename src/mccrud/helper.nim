@@ -262,7 +262,7 @@ proc computeCreateScript*(collName: string, queryParams: seq[QueryParam]): seq[s
         var createScripts: seq[string] = @[]
         
         for item in queryParams:
-            var itemScript = "INSERT INTO " & collName
+            var itemScript = "INSERT INTO " & collName & " ("
             var itemValues = " VALUES("
             var 
                 fieldCount = 0
@@ -290,8 +290,11 @@ proc computeCreateScript*(collName: string, queryParams: seq[QueryParam]): seq[s
                     itemValues.add(", ")
                 else:
                     itemValues.add(" ")
+            itemScript.add(" )")
+            itemValues.add(" )")
+            
             if missingField < fieldCount:
-                createScripts.add(itemScript)
+                createScripts.add(itemScript & itemValues)
         
 ## updateScript compose update SQL script
 ## 
