@@ -38,12 +38,16 @@ proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
         # create script from rec param
         var createScripts:seq[string] = computeCreateScript(crud.collName, rec)
         
-         # perform create/insert action
+        # perform create/insert action
+        # TODO: wrap in transaction
+        for item in createScripts:
+            crud.appDb.db.exec(sql(item))
 
         # if action was successful task audit log
 
         # response
-        echo ""
+        return getResMessage("saveError", ResponseMessage(value: %*(ok), message: ""))  
+        
     except:
         let ok = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(ok), message: getCurrentExceptionMsg()))  
@@ -54,6 +58,9 @@ proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
         var updateScripts: seq[string] = computeUpdateScript(crud.collName, rec, crud.docIds)
         
         # perform update action
+        # TODO: wrap in transaction
+        for item in updateScripts:
+            crud.appDb.db.exec(sql(item))
 
         # if action was successful task audit log
 
