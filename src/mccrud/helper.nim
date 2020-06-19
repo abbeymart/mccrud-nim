@@ -207,23 +207,29 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                     if groupItem.fieldValues.len() > 0:
                         # compose the IN values from fieldValues
                         var inValues = "("
+                        var valCount = 0
                         for itemValue in groupItem.fieldValues:
+                            valCount += 1
                             if groupItem.fieldType == "string":
                                 inValues.add("'")
                                 inValues.add(itemValue)
                                 inValues.add("'")
-                                inValues.add(", ")
+                                if valCount < groupItem.fieldValues.len:
+                                    inValues.add(", ")
                             elif groupItem.fieldType == "int" or groupItem.fieldType == "float":
                                 inValues.add(itemValue)
-                                inValues.add(", ")
-                        if groupItem.fieldValue != "":
+                                if valCount < groupItem.fieldValues.len:
+                                    inValues.add(", ")
+                        inValues.add(")")
+                        # strip "(" and ")" from inValues to determine if there are values
+                        let computedValues = inValues.split("(").join("").split(")")
+                        if computedValues.len > 0:
                             fieldQuery = fieldQuery & fieldname & " IN " & inValues
                         if groupItem.groupOp != "":
                             if itemsLen > 1 and itemCount < itemsLen:
                                 fieldQuery = fieldQuery & " " & groupItem.groupOp
                     elif groupItem.fieldSubQuery.collName != "":
-                        if groupItem.fieldValue != "":
-                            fieldQuery = fieldQuery & fieldname & " IN " & (fieldInSelectQuery)  & "'"
+                        fieldQuery = fieldQuery & fieldname & " IN " & (fieldInSelectQuery)
                         if groupItem.groupOp != "":
                             if itemsLen > 1 and itemCount < itemsLen:
                                 fieldQuery = fieldQuery & " " & groupItem.groupOp

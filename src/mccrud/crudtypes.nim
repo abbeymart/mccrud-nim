@@ -167,6 +167,12 @@ type
 
     OkayResponse* = object
         ok*: bool
+    
+    CurrentRecord* = object
+        currentRec*: seq[Row]
+    
+    TaskRecord* = object
+        taskRec*: seq[QueryParam]
 
     ## Shared CRUD Operation Types  
     CrudParam* = ref object
