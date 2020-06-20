@@ -39,9 +39,11 @@ proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
         var createScripts:seq[string] = computeCreateScript(crud.collName, rec)
         
         # perform create/insert action
-        # TODO: wrap in transaction
+        # wrap in transaction
+        crud.appDb.db.exec(sql"BEGIN")
         for item in createScripts:
             crud.appDb.db.exec(sql(item))
+        crud.appDb.db.exec(sql"COMMIT")
 
         # perform audit/trans-log action
         let 
@@ -79,9 +81,11 @@ proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
 
         let currentRecs =  crud.appDb.db.getAllRows(sql(currentRecScript))
 
-        # TODO: wrap in transaction
+        # wrap in transaction
+        crud.appDb.db.exec(sql"BEGIN")
         for item in updateScripts:
             crud.appDb.db.exec(sql(item))
+        crud.appDb.db.exec(sql"COMMIT")
 
         # perform audit/trans-log action
         let 
