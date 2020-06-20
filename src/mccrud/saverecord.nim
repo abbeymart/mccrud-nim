@@ -14,16 +14,16 @@
 ##  
 import crud, sequtils
 
-# constructor
+## save-record operations constructor
 proc newSaveRecord*(appDb: Database;
                     collName: string;
                     userInfo: UserParam;
                     actionParams: seq[QueryParam]; 
                     options: Table[string, ValueType]): CrudParam =
-    # base shared constructor variable
+    ## base / shared constructor
     result = newCrud(appDb, collName, userInfo, actionParams = actionParams, options )
     
-    # specific/sub-set constructor variable
+    ## specific/sub-set constructor variable
     result.docIds = @[]
     result.currentRecords = @[]
     result.roleServices = @[]
@@ -38,8 +38,8 @@ proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
         # create script from rec param
         var createScripts:seq[string] = computeCreateScript(crud.collName, rec)
         
-        # perform create/insert action
-        # wrap in transaction
+        ## perform create/insert action
+        ## wrap in transaction
         crud.appDb.db.exec(sql"BEGIN")
         for item in createScripts:
             crud.appDb.db.exec(sql(item))
@@ -49,7 +49,7 @@ proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
         let 
             tabName = crud.collName
             collValues = %*(TaskRecord(taskRec: rec))
-            userId = crud.userInfo.uid
+            userId = crud.userInfo.id
         if crud.logCreate:
             discard crud.transLog.createLog(tabName, collValues, userId)
         
@@ -61,14 +61,14 @@ proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
 
 proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
     try:
-        # create script from rec param
+        ## create script from rec param
         var updateScripts: seq[string] = computeUpdateScript(crud.collName, rec, crud.docIds)
         
-        # perform update action
-        # get current records
+        ## perform update action
+        ## get current records
         var currentRecScript = "SELECT * FROM "
         currentRecScript.add(crud.collName)
-        currentRecScript.add(" WHERE uid IN (")
+        currentRecScript.add(" WHERE id IN (")
         var idCount =  0
         for id in crud.docIds:
             idCount += 1
@@ -92,7 +92,7 @@ proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
             tabName = crud.collName
             collValues = %*(CurrentRecord(currentRec: currentRecs))
             collNewValues = %*(TaskRecord(taskRec: rec))
-            userId = crud.userInfo.uid
+            userId = crud.userInfo.id
         if crud.logUpdate:
             discard crud.transLog.updateLog(tabName, collValues, collNewValues, userId)
 
@@ -107,18 +107,18 @@ proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
 #     echo "insert-into-from-select-records"
 
 proc saveRecord*(crud: CrudParam): ResponseMessage =
-    # determine taskType from actionParams: create or update
-    # iterate through actionParams, update createRecs, updateRecs & crud.docIds
+    ## determine taskType from actionParams: create or update
+    ## iterate through actionParams, update createRecs, updateRecs & crud.docIds
     var 
-        createRecs: seq[QueryParam] = @[]    # include records with fieldName != "uid"
-        updateRecs: seq[QueryParam] = @[]    # include records with fieldName == "uid"
+        createRecs: seq[QueryParam] = @[]    ## include records with fieldName != "id"
+        updateRecs: seq[QueryParam] = @[]    ## include records with fieldName == "id"
 
     try:
         for rec in crud.actionParams:
-            # determine if record existed (update) or is new (create)
+            ## determine if record existed (update) or is new (create)
             proc itemExist(it: FieldItem; recId: var string): bool =
                 recId = it.fieldName 
-                it.fieldName == "uid"
+                it.fieldName == "id"
             var recId = ""
             if rec.fieldItems.anyIt(itemExist(it, recId)):
                 updateRecs.add(rec)
@@ -126,7 +126,7 @@ proc saveRecord*(crud: CrudParam): ResponseMessage =
             else:
                 createRecs.add(rec)
 
-        # save-record(s): new records, docIds = @[], for createRecs.len > 0
+        ## save-record(s): new records, docIds = @[], for createRecs.len > 0
         if createRecs.len > 0:
             # check permission based on the create and/or update records
             var taskPermit = taskPermission(crud, "create")
@@ -137,7 +137,7 @@ proc saveRecord*(crud: CrudParam): ResponseMessage =
             else:
                 return taskPermit
 
-        # update-record(s): existing record(s), docIds != @[], for updateRecs.len > 0
+        ## update-record(s): existing record(s), docIds != @[], for updateRecs.len > 0
         if updateRecs.len > 0:
             # check permission based on the create and/or update records
             var taskPermit = taskPermission(crud, "update")

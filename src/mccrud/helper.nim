@@ -1,4 +1,28 @@
-# CRUD helper procedures/functions
+#
+#                   mconnect solutions
+#        (c) Copyright 2020 Abi Akindele (mconnect.biz)
+#
+#    See the file "LICENSE.md", included in this
+#    distribution, for details a bout the copyright / license.
+# 
+#                  CRUD Helper Procedures
+# 
+
+## CRUD helper procedures/functions for the CRUD operations
+## strToBool (val: string): bool | converts string input to boolean
+## 
+## strToTime (val: string): Time | coverts time value in string (parseable as int) to Time
+## 
+## computeSelectQuery | computes string of SQL scripts for query (read) operations
+## 
+## computeWhereQuery | computes string of SQL condition scripts for CRUD operations
+## 
+## computeCreateQuery | computes array/sequence of string of SQL scripts for insert operations
+##
+## computeUpdateQuery | computes array/sequence of string of SQL scripts for update operations
+## 
+## computeDeleteQuery | computes array/sequence of string of SQL scripts for delete operations
+##  
 
 import strutils, times, algorithm
 

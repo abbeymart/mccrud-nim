@@ -4,7 +4,8 @@
 #    See the file "LICENSE.md", included in this
 #    distribution, for details a bout the copyright / license.
 # 
-##     CRUD Package - common / extendable base constructor & procedures
+
+##     CRUD Package - common / extendable base constructor & procedures for all CRUD operations
 ## 
 
 import strutils, times, sequtils
@@ -147,7 +148,7 @@ proc checkAccess*(
     try:
         # check active login session
         let accessQuery = sql("SELECT expire, user_id FROM " & accessColl & " WHERE user_id = " &
-                            userInfo.uid & " AND token = " & userInfo.token &
+                            userInfo.id & " AND token = " & userInfo.token &
                             " AND login_name = " & userInfo.loginName)
 
         let accessRecord = accessDb.db.getRow(accessQuery)
@@ -160,8 +161,8 @@ proc checkAccess*(
             return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: please ensure that you are logged-in") )
 
         # check current current-user status/info
-        let userQuery = sql("SELECT uid, default_group, groups, is_active, profile FROM " & userColl &
-                            " WHERE uid = " & userInfo.uid & " AND is_active = true")
+        let userQuery = sql("SELECT id, default_group, groups, is_active, profile FROM " & userColl &
+                            " WHERE id = " & userInfo.id & " AND is_active = true")
 
         let currentUser = accessDb.db.getRow(userQuery)
 
@@ -170,8 +171,8 @@ proc checkAccess*(
 
         # if all the above checks passed, check for role-services access by taskType
         # check access by taskType
-        # obtain collName - collId (uid) from serviceColl/Table
-        var collInfoQuery = sql("SELECT uid from " & serviceColl &
+        # obtain collName - collId (id) from serviceColl/Table
+        var collInfoQuery = sql("SELECT id from " & serviceColl &
                                 " WHERE name = " & collName )
 
         let collInfo = accessDb.db.getRow(collInfoQuery)
@@ -236,14 +237,14 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
 
         # ownership (i.e. created by userId) for all currentRecords (update/delete...)
         if crud.docIds.len() > 0:
-            var selectQuery = "SELECT uid, created_by, updated_by, created_date, updated_date FROM "
+            var selectQuery = "SELECT id, created_by, updated_by, created_date, updated_date FROM "
             selectQuery.add(crud.collName)
             selectQuery.add(" ")
-            var whereQuery= " WHERE uid IN ("
+            var whereQuery= " WHERE id IN ("
             whereQuery.add(crud.docIds.join(", "))
             whereQuery.add(" AND ")
             whereQuery.add("created_by = ")
-            whereQuery.add(crud.userInfo.uid)
+            whereQuery.add(crud.userInfo.id)
             whereQuery.add(" ")    
 
             var reqQuery = sql(selectQuery & " " & whereQuery)
