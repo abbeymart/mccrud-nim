@@ -25,12 +25,12 @@ proc newSaveRecord*(appDb: Database;
     
     ## specific/sub-set constructor variable
     result.docIds = @[]
-    result.currentRecords = @[]
-    result.roleServices = @[]
-    result.isRecExist = false
-    result.isAuthorized = false
-    result.recExistMessage = "Save / update error or duplicate records exist: "
-    result.unAuthMessage = "Action / task not authorised or permitted "
+    # result.currentRecords = @[]
+    # result.roleServices = @[]
+    # result.isRecExist = false
+    # result.isAuthorized = false
+    # result.recExistMessage = "Save / update error or duplicate records exist: "
+    # result.unAuthMessage = "Action / task not authorised or permitted "
 
 
 proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =

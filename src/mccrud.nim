@@ -10,8 +10,8 @@
 
 import mccrud/getrecord
 import mccrud/saverecord
-import mccrud/removerecord
+import mccrud/deleterecord
 
 export getrecord
 export saverecord
-export removerecord
+export deleterecord
