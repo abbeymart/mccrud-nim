@@ -33,7 +33,7 @@ proc strToBool*(val: string): bool =
     try:
         if val.toLower() == "true":
             return true
-        if val.toLower() == "t":
+        elif val.toLower() == "t":
             return true
         elif val.toLower() == "yes":
             return true
@@ -146,6 +146,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
     var whereQuery = " WHERE "
     var groupsLen = 0
     var unspecifiedFieldNameCount = 0 # variable to determine unspecified fieldNames
+    var unspecifiedGroupCount = 0
 
     try:
         groupsLen = whereParams.len()
@@ -163,10 +164,11 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
 
         # iterate through whereParams (groups)
         for group in sortedGroups:
-            groupCount += 1
+            inc groupCount
             let itemsLen = group.groupItems.len()
             # check groupItems length
-            if itemsLen == 0 or itemsLen < 1:
+            if itemsLen < 1:
+                inc unspecifiedGroupCount
                 continue
 
             # sort groupCat items by fieldOrder (ASC)
@@ -175,10 +177,10 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
             # compute the field-where-script
             var fieldQuery = " ("
             for groupItem in sortedItems:
-                itemCount += 1
-                # check groupItems length
-                if groupItem.fieldName == "":
-                    unspecifiedFieldNameCount += 1
+                inc itemCount
+                # check groupItem's fieldName and fieldValue
+                if groupItem.fieldName == "" or groupItem.fieldValue == "":
+                    inc unspecifiedFieldNameCount
                     continue
 
                 var fieldname = groupItem.fieldName
@@ -187,81 +189,137 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
 
                 case groupItem.fieldOp.toLower():
                 of "eq", "=":
-                    if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " = " & "'" & groupItem.fieldValue & "'"
-                    if groupItem.groupOp != "":
-                        if itemsLen > 1 and itemCount < itemsLen:
+                    case groupItem.fieldType
+                    of "string", "uuid", "text", "varchar":
+                        fieldQuery.add(" ")
+                        fieldQuery.add(groupItem.fieldName)
+                        fieldQuery.add(" = ")
+                        fieldQuery.add("'")
+                        fieldQuery.add(groupItem.fieldValue)
+                        fieldQuery.add("'")
+                        fieldQuery.add(" ")
+                    else:
+                        fieldQuery.add(" ")
+                        fieldQuery.add(groupItem.fieldName)
+                        fieldQuery.add(" = ")
+                        fieldQuery.add(groupItem.fieldValue)
+                        fieldQuery.add(" ")
+                    if groupItem.groupOp != "" and itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "neq", "!=", "<>":
-                    if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " <> " & "'" & groupItem.fieldValue & "'"
-                    if groupItem.groupOp != "":
-                        if itemsLen > 1 and itemCount < itemsLen:
+                    case groupItem.fieldType
+                    of "string", "uuid", "text", "varchar":
+                        fieldQuery.add(" ")
+                        fieldQuery.add(groupItem.fieldName)
+                        fieldQuery.add(" <> ")
+                        fieldQuery.add("'")
+                        fieldQuery.add(groupItem.fieldValue)
+                        fieldQuery.add("'")
+                        fieldQuery.add(" ")
+                    else:
+                        fieldQuery.add(" ")
+                        fieldQuery.add(groupItem.fieldName)
+                        fieldQuery.add(" <> ")
+                        fieldQuery.add(groupItem.fieldValue)
+                        fieldQuery.add(" ")
+                    if groupItem.groupOp != "" and itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "lt", "<":
-                    if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " < " & "'" & groupItem.fieldValue & "'"
-                    if groupItem.groupOp != "":
-                        if itemsLen > 1 and itemCount < itemsLen:
+                    case groupItem.fieldType
+                    of "string", "uuid", "text", "varchar":
+                        inc unspecifiedFieldNameCount
+                        continue
+                    else:
+                        fieldQuery.add(" ")
+                        fieldQuery.add(groupItem.fieldName)
+                        fieldQuery.add(" < ")
+                        fieldQuery.add(groupItem.fieldValue)
+                        fieldQuery.add(" ")
+                    if groupItem.groupOp != "" and itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "lte", "<=":
-                    if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " <= " & "'" & groupItem.fieldValue & "'"
-                    if groupItem.groupOp != "":
-                        if itemsLen > 1 and itemCount < itemsLen:
+                    case groupItem.fieldType
+                    of "string", "uuid", "text", "varchar":
+                        inc unspecifiedFieldNameCount
+                        continue
+                    else:
+                        fieldQuery.add(" ")
+                        fieldQuery.add(groupItem.fieldName)
+                        fieldQuery.add(" <= ")
+                        fieldQuery.add(groupItem.fieldValue)
+                        fieldQuery.add(" ")
+                    if groupItem.groupOp != "" and itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "gte", ">=":
-                    if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " >= " & "'" & groupItem.fieldValue & "'"
-                    if groupItem.groupOp != "":
-                        if itemsLen > 1 and itemCount < itemsLen:
+                    case groupItem.fieldType
+                    of "string", "uuid", "text", "varchar":
+                        inc unspecifiedFieldNameCount
+                        continue
+                    else:
+                        fieldQuery.add(" ")
+                        fieldQuery.add(groupItem.fieldName)
+                        fieldQuery.add(" >= ")
+                        fieldQuery.add(groupItem.fieldValue)
+                        fieldQuery.add(" ")
+                    if groupItem.groupOp != "" and itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "gt", ">":
-                    if groupItem.fieldValue != "":
-                        fieldQuery = fieldQuery & fieldname & " > " & "'" & groupItem.fieldValue & "'"
-                    if groupItem.groupOp != "":
-                        if itemsLen > 1 and itemCount < itemsLen:
+                    case groupItem.fieldType
+                    of "string", "uuid", "text", "varchar":
+                        inc unspecifiedFieldNameCount
+                        continue
+                    else:
+                        fieldQuery.add(" ")
+                        fieldQuery.add(groupItem.fieldName)
+                        fieldQuery.add(" > ")
+                        fieldQuery.add(groupItem.fieldValue)
+                        fieldQuery.add(" ")
+                    if groupItem.groupOp != "" and itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "in", "includes":
-                    let fieldSubQuery = groupItem.fieldSubQuery
-                    let fieldSelectQuery = computeSelectQuery(fieldSubQuery.collName, fieldSubQuery)
-                    let fieldWhereQuery = computeWhereQuery(fieldSubQuery.whereParams)
-                    let fieldInSelectQuery = fieldSelectQuery & " " & fieldWhereQuery
-
-                    if groupItem.fieldValues.len() > 0:
+                    # include values from SELECT query (e.g. lookup table/collection)
+                    var inValues = "("
+                    if groupItem.fieldSubQuery != QueryParam():
+                        let fieldSubQuery = groupItem.fieldSubQuery
+                        let fieldSelectQuery = computeSelectQuery(fieldSubQuery.collName, fieldSubQuery)
+                        let fieldWhereQuery = computeWhereQuery(fieldSubQuery.whereParams)
+                        inValues = fieldSelectQuery & " " & fieldWhereQuery & " )"
+                        if groupItem.fieldSubQuery.collName != "":
+                            fieldQuery = fieldQuery & " " & fieldname & " IN " & (inValues)
+                            if groupItem.groupOp != "" and itemsLen > 1:
+                                fieldQuery = fieldQuery & " " & groupItem.groupOp
+                    elif groupItem.fieldValues.len() > 0:
                         # compose the IN values from fieldValues
                         var inValues = "("
                         var valCount = 0
+                        var noValCount = 0
                         for itemValue in groupItem.fieldValues:
-                            valCount += 1
-                            if groupItem.fieldType == "string":
+                            inc valCount
+                            # check for value itemValue
+                            let itVal = $(itemValue)
+                            if itVal == "":
+                                inc noValCount
+                                continue
+                            case groupItem.fieldType
+                            of "string", "uuid", "text", "varchar":
                                 inValues.add("'")
                                 inValues.add(itemValue)
                                 inValues.add("'")
                                 if valCount < groupItem.fieldValues.len:
                                     inValues.add(", ")
-                            elif groupItem.fieldType == "int" or groupItem.fieldType == "float":
+                            else:
                                 inValues.add(itemValue)
                                 if valCount < groupItem.fieldValues.len:
                                     inValues.add(", ")
-                        inValues.add(")")
-                        # strip "(" and ")" from inValues to determine if there are values
-                        let computedValues = inValues.split("(").join("").split(")")
-                        if computedValues.len > 0:
-                            fieldQuery = fieldQuery & fieldname & " IN " & inValues
-                        if groupItem.groupOp != "":
-                            if itemsLen > 1 and itemCount < itemsLen:
-                                fieldQuery = fieldQuery & " " & groupItem.groupOp
-                    elif groupItem.fieldSubQuery.collName != "":
-                        fieldQuery = fieldQuery & fieldname & " IN " & (fieldInSelectQuery)
-                        if groupItem.groupOp != "":
-                            if itemsLen > 1 and itemCount < itemsLen:
-                                fieldQuery = fieldQuery & " " & groupItem.groupOp
-
-            # add closing bracket to complete the group-items query/script or continue
+                            inValues.add(")")
+                
+                        if groupItem.groupOp != "" and itemsLen > 1 and itemCount < itemsLen:
+                            fieldQuery = fieldQuery & " " & fieldname & " IN " & (inValues) & " " & groupItem.groupOp
+                        
+            # continue to the next group iteration, if fieldItems is empty for the current group 
             if unspecifiedFieldNameCount == itemCount:
                 continue
-                
+            # add closing bracket to complete the group-items query/script
             fieldQuery = fieldQuery & " )"
             
             # add optional groupLinkOp, if groupsLen > 1
@@ -395,7 +453,7 @@ proc computeDeleteByParamScript*(collName: string, whereParams: seq[WhereParam])
         let whereParam = computeWhereQuery(whereParams)
         
         try:
-            if whereParam == "":
+            if whereParams.len < 1 or whereParam == "":
                 raise newException(ValueError, "where condition is required for delete operation")
             deleteScripts = "DELETE FROM " & collName & " " & whereParam
             return deleteScripts
