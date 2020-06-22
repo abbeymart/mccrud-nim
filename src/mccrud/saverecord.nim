@@ -61,7 +61,7 @@ proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
 
 proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
     try:
-        ## create script from rec param
+        ## update script from rec param
         var updateScripts: seq[string] = computeUpdateScript(crud.collName, rec, crud.docIds)
         
         ## perform update action

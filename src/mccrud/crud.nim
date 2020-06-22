@@ -22,7 +22,7 @@ proc newCrud*(appDb: Database;
             collName: string; 
             userInfo: UserParam;
             actionParams: seq[QueryParam] = @[];
-            queryParams: seq[QueryParam] = @[];
+            queryParam: QueryParam = QueryParam();
             whereParams: seq[WhereParam] = @[];
             inserIntoParams: seq[InsertIntoParam] = @[];
             selectFromParams: seq[SelectFromParam] = @[];
@@ -61,7 +61,7 @@ proc newCrud*(appDb: Database;
     result.collName = collName
     result.userInfo = userInfo
     result.actionParams = actionParams
-    result.queryParams = queryParams
+    result.queryParam = queryParam
    
     # Create/Update
     result.insertIntoParams = inserIntoParams

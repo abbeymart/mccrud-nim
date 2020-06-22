@@ -102,10 +102,6 @@ proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
         let okRes = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
 
-# keep this separate, as a specialised procedure/function
-# proc insertIntoFromSelectRecords(rec: seq[QueryParam]): ResponseMessage =
-#     echo "insert-into-from-select-records"
-
 proc saveRecord*(crud: CrudParam): ResponseMessage =
     ## determine taskType from actionParams: create or update
     ## iterate through actionParams, update createRecs, updateRecs & crud.docIds

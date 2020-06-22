@@ -28,12 +28,14 @@ proc newDeleteRecord*(appDb: Database;
     ## specific/sub-set constructor variable
     result.docIds = docIds
 
-proc removeRecordById(crud: CrudParam, rec: seq[string]): ResponseMessage =
+## Delete or remove record(s) by id(s)
+## 
+proc deleteRecordById(crud: CrudParam): ResponseMessage =
     try:
-        ## create script from rec param
-        var updateScripts: seq[string] = computeUpdateScript(crud.collName, rec, crud.docIds)
+        ## delete script from docIds
+        let deleteScripts: string = computeDeleteByIdScript(crud.collName, crud.docIds)
         
-        ## perform update action
+        ## perform delete action
         ## get current records
         var currentRecScript = "SELECT * FROM "
         currentRecScript.add(crud.collName)
@@ -50,84 +52,82 @@ proc removeRecordById(crud: CrudParam, rec: seq[string]): ResponseMessage =
 
         let currentRecs =  crud.appDb.db.getAllRows(sql(currentRecScript))
 
+        # TODO: exit / return if currentRecs[0].len < 1
+
         # wrap in transaction
         crud.appDb.db.exec(sql"BEGIN")
-        for item in updateScripts:
-            crud.appDb.db.exec(sql(item))
+        crud.appDb.db.exec(sql(deleteScripts))
         crud.appDb.db.exec(sql"COMMIT")
 
         # perform audit/trans-log action
         let 
             tabName = crud.collName
             collValues = %*(CurrentRecord(currentRec: currentRecs))
-            collNewValues = %*(TaskRecord(taskRec: rec))
             userId = crud.userInfo.id
-        if crud.logUpdate:
-            discard crud.transLog.updateLog(tabName, collValues, collNewValues, userId)
+        if crud.logDelete:
+            discard crud.transLog.deleteLog(tabName, collValues, userId)
 
         # response
-        return getResMessage("success", ResponseMessage(value: nil, message: "Record(s) updated successfully"))
+        return getResMessage("success", ResponseMessage(value: %*(crud.docIds), message: "Record(s) deleted(removed) successfully"))
     except:
         let okRes = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
 
-proc removeRecordByParam(crud: CrudParam, rec: seq[WhereParam]): ResponseMessage =
+## Delete or remove record(s) by id(s)
+## 
+proc deleteRecordByParam(crud: CrudParam): ResponseMessage =
     try:
-        ## create script from rec param
-        var updateScripts: seq[string] = computeUpdateScript(crud.collName, rec, crud.docIds)
+        ## delete script from docIds
+        let deleteScripts: string = computeDeleteByParamScript(crud.collName, crud.whereParams)
         
-        ## perform update action
+        ## perform delete action
         ## get current records
-        var currentRecScript = "SELECT * FROM "
-        currentRecScript.add(crud.collName)
-        currentRecScript.add(" WHERE id IN (")
-        var idCount =  0
-        for id in crud.docIds:
-            idCount += 1
-            currentRecScript.add("'")
-            currentRecScript.add(id)
-            currentRecScript.add("'")
-            if idCount < crud.docIds.len:
-                currentRecScript.add(", ")
-        currentRecScript.add(" )")
+        let selectQuery = computeSelectQuery(crud.collName, crud.queryParam)
+        let whereParam = computeWhereQuery(crud.whereParams)
+
+        let currentRecScript = selectQuery & " " & whereParam
 
         let currentRecs =  crud.appDb.db.getAllRows(sql(currentRecScript))
 
+        # TODO: exit / return if currentRecs[0].len < 1
+
         # wrap in transaction
         crud.appDb.db.exec(sql"BEGIN")
-        for item in updateScripts:
-            crud.appDb.db.exec(sql(item))
+        crud.appDb.db.exec(sql(deleteScripts))
         crud.appDb.db.exec(sql"COMMIT")
 
         # perform audit/trans-log action
         let 
             tabName = crud.collName
             collValues = %*(CurrentRecord(currentRec: currentRecs))
-            collNewValues = %*(TaskRecord(taskRec: rec))
             userId = crud.userInfo.id
-        if crud.logUpdate:
-            discard crud.transLog.updateLog(tabName, collValues, collNewValues, userId)
+        if crud.logDelete:
+            discard crud.transLog.deleteLog(tabName, collValues, userId)
 
         # response
-        return getResMessage("success", ResponseMessage(value: nil, message: "Record(s) updated successfully"))
+        return getResMessage("success", ResponseMessage(value: %*(crud.docIds), message: "Record(s) deleted(removed) successfully"))
     except:
         let okRes = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
-
-
-# keep this separate, as a specialised procedure/function
-# proc insertIntoFromSelectRecords(rec: seq[QueryParam]): ResponseMessage =
-#     echo "insert-into-from-select-records"
 
 proc deleteRecord*(crud: CrudParam; by: string;
                     docIds: seq[string] = @[];
                     whereParams: seq[WhereParam] = @[]): ResponseMessage =
-    ## delete actions by type/conditons ("id" or "params") only,
-    ## to avoid removing all table/collection records
-    ## 
-    if (by == "id" and docIds.len < 1) or (whereParams.len < 1):
+    
+    # update crud instance ref-variables
+    if crud.docIds.len < 1 and docIds.len > 0:
+        crud.docIds = docIds
+    if crud.whereParams.len < 1 and whereParams.len > 0:
+        crud.whereParams = whereParams
+
+    # validate required inputs by action-type
+    if by == "id" and crud.docIds.len < 1:
         # return error message
-        return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by id (docIds[]) or by params (whereParams) is required"))
+        return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by id (docIds[]) is required"))
+    elif whereParams.len < 1:
+         return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by params (whereParams) is required"))
+    
+    
     ## determine taskType from actionParams: create or update
     ## iterate through actionParams, update createRecs, updateRecs & crud.docIds
     try:
@@ -138,8 +138,8 @@ proc deleteRecord*(crud: CrudParam; by: string;
             let taskValue = taskPermit.value{"ok"}.getBool(false)
             if taskValue and taskPermit.code == "success":
                 echo "process task"
-                # update existing record(s)
-                return removeRecordById(crud, docIds)
+                # delete existing record(s)
+                return deleteRecordById(crud)
             else:
                 return taskPermit
         of "params", "query":
@@ -149,7 +149,7 @@ proc deleteRecord*(crud: CrudParam; by: string;
             if taskValue and taskPermit.code == "success":
                 echo "process task"
                 # update existing record(s)
-                return removeRecordByParam(crud, whereParams)
+                return deleteRecordByParam(crud)
             else:
                 return taskPermit
     except:

@@ -187,6 +187,7 @@ type
         ## ValueError exception will be raised for invalid value/data type 
         ##
         actionParams*: seq[QueryParam]
+        queryParam*: QueryParam
         ## Bulk Insert Operation: 
         ## insertToParams {collName: "abc", fieldNames: @["field1", "field2"]}
         ## For collName: "" will use the default constructor collName

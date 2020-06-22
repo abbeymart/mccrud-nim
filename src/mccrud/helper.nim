@@ -274,6 +274,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                 
             # compute where-script from the group-script, append in sequence by groupOrder 
             whereQuery = whereQuery & " " & fieldQuery
+        # TODO: check WHERE script contains at least one condition, otherwise return empty string
 
     except:
         # raise exception or return empty select statement, for exception/error
@@ -365,15 +366,39 @@ proc computeUpdateScript*(collName: string, queryParams: seq[QueryParam], docIds
             # raise exception or return empty select statement, for exception/error
             raise newException(ValueError, getCurrentExceptionMsg())
 
-## updateScript compose update SQL script
+## deleteScript compose delete SQL script by id(s) 
 ## 
-proc computeDeleteScript*(collName: string): string =
+proc computeDeleteByIdScript*(collName: string, docIds:seq[string]): string =
     # delete script for a collName (table)
-        var updateScripts: string = ""
+        var deleteScripts: string = ""
+        try:
+            if docIds.len < 1:
+                raise newException(ValueError, "record id(s) is(are) required for delete operation")
+            deleteScripts = "DELETE FROM " & collName & " WHERE id IN("
+            var idCount = 0
+            for id in docIds:
+                idCount += 1
+                deleteScripts.add("'")
+                deleteScripts.add(id)
+                deleteScripts.add("'")
+                if idCount < docIds.len:
+                    deleteScripts.add(", ")
+            return deleteScripts
+        except:
+            # raise exception or return empty select statement, for exception/error
+            raise newException(ValueError, getCurrentExceptionMsg())
+
+## deleteScript compose delete SQL script by params
+proc computeDeleteByParamScript*(collName: string, whereParams: seq[WhereParam]): string =
+    # delete script for a collName (table)
+        var deleteScripts: string = ""
+        let whereParam = computeWhereQuery(whereParams)
         
         try:
-            updateScripts = "DELETE FROM " & collName & " "
-            return updateScripts
+            if whereParam == "":
+                raise newException(ValueError, "where condition is required for delete operation")
+            deleteScripts = "DELETE FROM " & collName & " " & whereParam
+            return deleteScripts
         except:
             # raise exception or return empty select statement, for exception/error
             raise newException(ValueError, getCurrentExceptionMsg())
