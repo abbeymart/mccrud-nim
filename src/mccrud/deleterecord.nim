@@ -15,7 +15,7 @@
 import crud
 
 # constructor
-## save-record operations constructor
+## delete-record operations constructor
 proc newDeleteRecord*(appDb: Database;
                     collName: string;
                     userInfo: UserParam;
@@ -32,7 +32,7 @@ proc newDeleteRecord*(appDb: Database;
 ## 
 proc deleteRecordById(crud: CrudParam): ResponseMessage =
     try:
-        ## delete script from docIds
+        ## compute delete script from docIds
         let deleteScripts: string = computeDeleteByIdScript(crud.collName, crud.docIds)
         
         ## perform delete action
@@ -52,9 +52,12 @@ proc deleteRecordById(crud: CrudParam): ResponseMessage =
 
         let currentRecs =  crud.appDb.db.getAllRows(sql(currentRecScript))
 
-        # TODO: exit / return if currentRecs[0].len < 1
+        # exit / return if currentRecs[0].len < 1
+        if currentRecs[0].len < 1:
+            let okRes = OkayResponse(ok: false)
+            return getResMessage("notFound", ResponseMessage(value: %*(okRes), message: "No record(s) found"))  
 
-        # wrap in transaction
+        # perform delete task, wrap in transaction
         crud.appDb.db.exec(sql"BEGIN")
         crud.appDb.db.exec(sql(deleteScripts))
         crud.appDb.db.exec(sql"COMMIT")
@@ -71,13 +74,13 @@ proc deleteRecordById(crud: CrudParam): ResponseMessage =
         return getResMessage("success", ResponseMessage(value: %*(crud.docIds), message: "Record(s) deleted(removed) successfully"))
     except:
         let okRes = OkayResponse(ok: false)
-        return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
+        return getResMessage("deleteError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
 
-## Delete or remove record(s) by id(s)
+## Delete or remove record(s) by params / query
 ## 
 proc deleteRecordByParam(crud: CrudParam): ResponseMessage =
     try:
-        ## delete script from docIds
+        ## compute delete script from whereParams
         let deleteScripts: string = computeDeleteByParamScript(crud.collName, crud.whereParams)
         
         ## perform delete action
@@ -89,7 +92,10 @@ proc deleteRecordByParam(crud: CrudParam): ResponseMessage =
 
         let currentRecs =  crud.appDb.db.getAllRows(sql(currentRecScript))
 
-        # TODO: exit / return if currentRecs[0].len < 1
+        # exit / return if currentRecs[0].len < 1
+        if currentRecs[0].len < 1:
+            let okRes = OkayResponse(ok: false)
+            return getResMessage("notFound", ResponseMessage(value: %*(okRes), message: "No record(s) found"))  
 
         # wrap in transaction
         crud.appDb.db.exec(sql"BEGIN")
@@ -108,7 +114,7 @@ proc deleteRecordByParam(crud: CrudParam): ResponseMessage =
         return getResMessage("success", ResponseMessage(value: %*(crud.docIds), message: "Record(s) deleted(removed) successfully"))
     except:
         let okRes = OkayResponse(ok: false)
-        return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
+        return getResMessage("deleteError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
 
 proc deleteRecord*(crud: CrudParam; by: string;
                     docIds: seq[string] = @[];
@@ -128,29 +134,28 @@ proc deleteRecord*(crud: CrudParam; by: string;
          return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by params (whereParams) is required"))
     
     
-    ## determine taskType from actionParams: create or update
-    ## iterate through actionParams, update createRecs, updateRecs & crud.docIds
+    ## perform delete task, by taskType (id or params/query)
     try:
         case by:
         of "id":
-            # check permission based on the create and/or update records
+            # check permission based on the delete task
             var taskPermit = taskPermission(crud, "delete")
             let taskValue = taskPermit.value{"ok"}.getBool(false)
             if taskValue and taskPermit.code == "success":
-                echo "process task"
-                # delete existing record(s)
+                # delete record(s) by id
                 return deleteRecordById(crud)
             else:
+                # return task permission reponse
                 return taskPermit
         of "params", "query":
             # check permission based on the create and/or update records
             var taskPermit = taskPermission(crud, "delete")
             let taskValue = taskPermit.value{"ok"}.getBool(false)
             if taskValue and taskPermit.code == "success":
-                echo "process task"
-                # update existing record(s)
+                # delete record(s) by params/query
                 return deleteRecordByParam(crud)
             else:
+                # return task permission reponse
                 return taskPermit
     except:
         let okRes = OkayResponse(ok: false)
