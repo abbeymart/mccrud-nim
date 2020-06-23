@@ -322,6 +322,11 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
             # add closing bracket to complete the group-items query/script
             fieldQuery = fieldQuery & " )"
             
+            # validate acceptable groupLinkOperators (and || or)
+            var groupLnOp = @["and", "or"]
+            if groupLnOp.contains(group.groupLinkOp):
+                raise newException(ValueError, "unacceptable group-link-operator (should be 'and', 'or')")
+            
             # add optional groupLinkOp, if groupsLen > 1
             if groupsLen > 1 and groupCount < groupsLen and group.groupLinkOp != "":
                 fieldQuery = fieldQuery & " " & group.groupLinkOp.toUpper() & " "
@@ -333,6 +338,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
             # compute where-script from the group-script, append in sequence by groupOrder 
             whereQuery = whereQuery & " " & fieldQuery
         # TODO: check WHERE script contains at least one condition, otherwise return empty string
+        
 
     except:
         # raise exception or return empty select statement, for exception/error
