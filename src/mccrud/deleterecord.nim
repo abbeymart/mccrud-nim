@@ -37,19 +37,7 @@ proc deleteRecordById(crud: CrudParam): ResponseMessage =
         
         ## perform delete action
         ## get current records
-        var currentRecScript = "SELECT * FROM "
-        currentRecScript.add(crud.collName)
-        currentRecScript.add(" WHERE id IN (")
-        var idCount =  0
-        for id in crud.docIds:
-            idCount += 1
-            currentRecScript.add("'")
-            currentRecScript.add(id)
-            currentRecScript.add("'")
-            if idCount < crud.docIds.len:
-                currentRecScript.add(", ")
-        currentRecScript.add(" )")
-
+        var currentRecScript = computeSelectByIdScript(crud.collName, crud.docIds)
         let currentRecs =  crud.appDb.db.getAllRows(sql(currentRecScript))
 
         # exit / return if currentRecs[0].len < 1

@@ -339,7 +339,6 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
             whereQuery = whereQuery & " " & fieldQuery
         # TODO: check WHERE script contains at least one condition, otherwise return empty string
         
-
     except:
         # raise exception or return empty select statement, for exception/error
         raise newException(ValueError, getCurrentExceptionMsg())
@@ -393,10 +392,9 @@ proc computeCreateScript*(collName: string, queryParams: seq[QueryParam]): seq[s
 ## updateScript compose update SQL script
 ## 
 proc computeUpdateScript*(collName: string, queryParams: seq[QueryParam], docIds: seq[string]): seq[string] =
-    # updated script from queryParams
-        var updateScripts: seq[string] = @[]
-        
+    # updated script from queryParams  
         try:
+            var updateScripts: seq[string] = @[]
             for item in queryParams:
                 var 
                     itemScript = "UPDATE " & collName & " SET"
@@ -430,18 +428,17 @@ proc computeUpdateScript*(collName: string, queryParams: seq[QueryParam], docIds
             # raise exception or return empty select statement, for exception/error
             raise newException(ValueError, getCurrentExceptionMsg())
 
-## deleteScript compose delete SQL script by id(s) 
+## deleteByIdScript compose delete SQL script by id(s) 
 ## 
 proc computeDeleteByIdScript*(collName: string, docIds:seq[string]): string =
-    # delete script for a collName (table)
-        var deleteScripts: string = ""
         try:
+            var deleteScripts: string = ""
             if docIds.len < 1:
                 raise newException(ValueError, "record id(s) is(are) required for delete operation")
             deleteScripts = "DELETE FROM " & collName & " WHERE id IN("
             var idCount = 0
             for id in docIds:
-                idCount += 1
+                inc idCount
                 deleteScripts.add("'")
                 deleteScripts.add(id)
                 deleteScripts.add("'")
@@ -452,17 +449,38 @@ proc computeDeleteByIdScript*(collName: string, docIds:seq[string]): string =
             # raise exception or return empty select statement, for exception/error
             raise newException(ValueError, getCurrentExceptionMsg())
 
-## deleteScript compose delete SQL script by params
+## deleteByParamScript compose delete SQL script by params
 proc computeDeleteByParamScript*(collName: string, whereParams: seq[WhereParam]): string =
-    # delete script for a collName (table)
-        var deleteScripts: string = ""
-        let whereParam = computeWhereQuery(whereParams)
-        
         try:
+            var deleteScripts: string = ""
+            let whereParam = computeWhereQuery(whereParams)
             if whereParams.len < 1 or whereParam == "":
                 raise newException(ValueError, "where condition is required for delete operation")
             deleteScripts = "DELETE FROM " & collName & " " & whereParam
             return deleteScripts
+        except:
+            # raise exception or return empty select statement, for exception/error
+            raise newException(ValueError, getCurrentExceptionMsg())
+
+## selectByIdScript compose select SQL script by id(s) 
+## 
+proc computeSelectByIdScript*(collName: string, docIds:seq[string]): string =
+        try:
+            if docIds.len < 1:
+                raise newException(ValueError, "record id(s) is(are) required for delete operation")
+            var currentRecScript = "SELECT * FROM "
+            currentRecScript.add(collName)
+            currentRecScript.add(" WHERE id IN (")
+            var idCount =  0
+            for id in docIds:
+                idCount += 1
+                currentRecScript.add("'")
+                currentRecScript.add(id)
+                currentRecScript.add("'")
+                if idCount < docIds.len:
+                    currentRecScript.add(", ")
+            currentRecScript.add(" )")
+            return currentRecScript
         except:
             # raise exception or return empty select statement, for exception/error
             raise newException(ValueError, getCurrentExceptionMsg())
