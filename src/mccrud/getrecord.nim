@@ -18,7 +18,8 @@ import crud
 proc newGetRecord*(appDb: Database;
                     collName: string;
                     userInfo: UserParam;
-                    actionParams: seq[QueryParam]; 
+                    actionParams: seq[QueryParam];
+                    docIds: seq[string] = @[]; 
                     options: Table[string, ValueType]): CrudParam =
     ## base / shared constructor
     result = newCrud(appDb, collName, userInfo, actionParams = actionParams, options )
@@ -31,7 +32,6 @@ proc newGetRecord*(appDb: Database;
     result.isAuthorized = false
     result.recExistMessage = "Save / update error or duplicate records exist: "
     result.unAuthMessage = "Action / task not authorised or permitted "
-
 
 proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
     try:
