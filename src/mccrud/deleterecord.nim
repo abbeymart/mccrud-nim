@@ -107,23 +107,22 @@ proc deleteRecordByParam(crud: CrudParam): ResponseMessage =
 proc deleteRecord*(crud: CrudParam; by: string;
                     docIds: seq[string] = @[];
                     whereParams: seq[WhereParam] = @[]): ResponseMessage =
-    
-    # update crud instance ref-variables
-    if crud.docIds.len < 1 and docIds.len > 0:
-        crud.docIds = docIds
-    if crud.whereParams.len < 1 and whereParams.len > 0:
-        crud.whereParams = whereParams
-
-    # validate required inputs by action-type
-    if by == "id" and crud.docIds.len < 1:
-        # return error message
-        return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by id (docIds[]) is required"))
-    elif whereParams.len < 1:
-         return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by params (whereParams) is required"))
-    
-    
     ## perform delete task, by taskType (id or params/query)
     try:
+
+        # update crud instance ref-variables
+        if crud.docIds.len < 1 and docIds.len > 0:
+            crud.docIds = docIds
+        if crud.whereParams.len < 1 and whereParams.len > 0:
+            crud.whereParams = whereParams
+
+        # validate required inputs by action-type
+        if by == "id" and crud.docIds.len < 1:
+            # return error message
+            return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by id (docIds[]) is required"))
+        elif whereParams.len < 1:
+            return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by params (whereParams) is required"))
+        
         case by:
         of "id":
             # check permission based on the delete task
