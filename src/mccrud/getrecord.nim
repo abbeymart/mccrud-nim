@@ -27,6 +27,7 @@ proc newGetRecord*(appDb: Database;
     ## specific/sub-set constructor variable
     result.docIds = @[]
     result.currentRecords = @[]
+    
     result.roleServices = @[]
     result.recExistMessage = "Save / update error or duplicate records exist: "
     result.unAuthMessage = "Action / task not authorised or permitted "
