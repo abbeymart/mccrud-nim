@@ -14,20 +14,20 @@
 import crud
 
 # constructor
-## save-record operations constructor
+## get-record operations constructor
 proc newGetRecord*(appDb: Database;
                     collName: string;
                     userInfo: UserParam;
-                    actionParams: seq[QueryParam];
+                    whereParams: seq[WhereParam];
                     docIds: seq[string] = @[]; 
                     options: Table[string, ValueType]): CrudParam =
     ## base / shared constructor
-    result = newCrud(appDb, collName, userInfo, actionParams = actionParams, options )
+    result = newCrud(appDb, collName, userInfo, whereParams = whereParams, options )
     
     ## specific/sub-set constructor variable
     result.docIds = @[]
     result.currentRecords = @[]
-    
+
     result.roleServices = @[]
     result.recExistMessage = "Save / update error or duplicate records exist: "
     result.unAuthMessage = "Action / task not authorised or permitted "
@@ -36,7 +36,6 @@ proc getRecord*(crud: CrudParam; by: string;
                     docIds: seq[string] = @[];
                     whereParams: seq[WhereParam] = @[]): ResponseMessage =
 
-    
     
     try:
         # update crud instance ref-variables
@@ -77,6 +76,37 @@ proc getAllRecords*(crud: CrudParam): ResponseMessage =
 
         if crud.skip < 0:
             crud.skip = 0
+        
+        # perform query for the collName
+        # TODO: get the model definition for the collName in order of the field(s)
+
+        type UserColl = object
+            id: string  # uuid
+            username:string
+            firstname: string
+            lastname: string
+            middlename: string
+            email: string
+            recovery_email: string
+            lang: string
+            is_active: bool
+            desc: string
+            profile: string  # jsonb 
+
+
+        var getQueryScript = "SELECT * FROM " & crud.collName & " "
+
+        getQueryScript.add(" SKIP ")
+        getQueryScript.add($crud.skip)
+        getQueryScript.add(" LIMIT ")
+        getQueryScript.add($crud.limit)
+
+        let getRecs =  crud.appDb.db.getAllRows(sql(getQueryScript))
+
+        # transform/map getRecs into collName model definition
+
+        # return mapped records as json array-objects 
+
         
     except:
         const okRes = OkayResponse(ok: false)
