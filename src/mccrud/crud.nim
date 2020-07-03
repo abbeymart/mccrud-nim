@@ -260,7 +260,7 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
             # get access info value (json) => toObject
             let accessInfo = to(accessRes.value, CheckAccess)
 
-            isAdmin = accessInfo.isActive
+            isAdmin = accessInfo.isAdmin
             let
                 # userId = accessInfo.userId
                 # userRole = accessInfo.userRole
