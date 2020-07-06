@@ -31,13 +31,8 @@ import crudtypes
 ## strToBool procedure converts a string parameter to a boolean
 proc strToBool*(val: string): bool =
     try:
-        if val.toLower() == "true":
-            return true
-        elif val.toLower() == "t":
-            return true
-        elif val.toLower() == "yes":
-            return true
-        elif val.toLower() == "y":
+        let strVal = val.toLower
+        if strVal == "true" or strVal == "t" or strVal == "yes" or strVal == "y":
             return true
         elif val.parseInt > 0:
             return true
