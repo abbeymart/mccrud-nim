@@ -15,12 +15,27 @@ import mcdb, mctranslog
 type
     ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database | typed
 
+    ## User/client information to be provided after successful login
+    ## 
+    #[
+        email: "abbeya1@yahoo.com"
+        firstName: "Abi"
+        isActive: true
+        lang: "en-US"
+        lastName: "Akindele"
+        id: "5b0e139b3151184425aae01c" (_id for mongodb)
+        token: "aaaaaaaaaaaaaaa455YFFS99902zzz..."
+    ]# 
     UserParam* = object
-        id*: string
+        id*: string         # stored as uuid in the DB
+        firstName: string
+        lastName: string
+        lang: string
         loginName*: string
         email*: string
         token*: string
 
+    
     # fieldValue(s) are string type for params parsing convenience,
     # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
     # fieldOp: GT, EQ, GTE, LT, LTE, NEQ(<>), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)
@@ -53,39 +68,44 @@ type
     #     selectField*: FieldItem
 
     WhereParam* = object
-        groupCat*: string
-        groupLinkOp*: string
-        groupOrder*: int
-        groupItems*: seq[FieldItem]
+        groupCat*: string       # group (items) categorization
+        groupLinkOp*: string    # group relationship to the next group (AND, OR)
+        groupOrder*: int        # group order, the last group groupLinkOp should be "" or will be ignored
+        groupItems*: seq[FieldItem] # group items to be composed by category
 
+    ## QueryFunction type for function with one or more fields / arguments
     ## functionType => MIN(min), MAX, SUM, AVE, COUNT, CUSTOM/USER defined
     ## fieldItems=> specify fields/parameters to match the arguments for the functionType.
-    ## The fieldType must match the argument types expected by the functionType, 
+    ## The field item type must match the argument types expected by the functionType, 
     ## otherwise the only the first function-matching field will be used, as applicable
     QueryFunction* = object
         functionType*: string
         fieldItems*: seq[FieldItem]
         
     QueryParam* = object
-        collName*: string    ## default: "" => will use collName instead
+        collName*: string    ## default: "" => will use instance collName instead
         fieldItems*: seq[FieldItem]   ## @[] => SELECT * (all fields)
-        whereParams*: seq[WhereParam]
+        whereParams*: seq[WhereParam] ## whereParams or docId(s)  will be required for delete task
 
+    ## For SELECT TOP... query
     QueryTop* = object         
-        topValue*: int
+        topValue*: int    
         topUnit*: string ## number or percentage (# or %)
     
+    ## SELECT CASE... query condition(s)
     CaseCondition* = object
         fieldItems*: seq[FieldItem]
         resultMessage*: string
         resultField*: string  ## for ORDER BY options
 
+    ## For SELECT CASE... query
     CaseQueryParam* = object
         conditions*: seq[CaseCondition]
         defaultField*: string   ## for ORDER BY options
         defaultMessage*: string 
         orderBy*: bool
         asField*: string
+
 
     SelectFromParam* = object
         collName*: string
@@ -162,7 +182,7 @@ type
     CheckAccess* = object
         userId*: string
         userRole*: string
-        userRoles*: JsonNode
+        userRoles*: seq[string]
         isActive*: bool
         isAdmin*: bool
         roleServices*: seq[RoleService]
@@ -222,7 +242,7 @@ type
         groupParams*: seq[GroupParam] ## @[{fieldName: ""location", fieldOrder: 1}]
         havingParams*: seq[HavingParam]
         caseParams*: seq[CaseQueryParam] 
-        skip*: Positive
+        skip*: Natural
         limit*: Positive
         ## Database, audit-log and access parameters 
         ## 
