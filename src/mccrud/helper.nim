@@ -46,6 +46,7 @@ proc strToTime*(val: string): Time =
     try:
         result = fromUnix(val.parseInt)
     except:
+        # return the current time
         return Time()
 
 ## computeSelectQuery compose SELECT query from the queryParam
@@ -54,17 +55,18 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
     # initialize variable to compose the select-query
     var selectQuery = "SELECT"
     var sortedFields: seq[FieldItem] = @[]
-    var fieldLen = 0           
-    var unspecifiedFieldNameCount = 0 # variable to determine unspecified fieldNames
+    var fieldLen = 0                  # number of fields in the SELECT statement/query         
+    var unspecifiedFieldNameCount = 0 # variable to determine unspecified fieldName(s) to check if query/script should be returned
 
     try:
-        if queryParam.fieldItems.len() == 0 or queryParam.fieldItems.len() < 1:
+        if queryParam.fieldItems.len() < 1:
+            # SELECT all fields in the table / collection
             selectQuery.add(" * FROM ")
             selectQuery.add(collName)
             selectQuery.add(" ")
             return selectQuery
         elif queryParam.fieldItems.len() == 1:
-            sortedFields = queryParam.fieldItems    # no sorting required for one item
+            sortedFields = queryParam.fieldItems    # no sorting required for one field
             fieldLen = 1
         else:
             # sort queryParam.fieldItems by fieldOrder (ASC)

@@ -32,7 +32,6 @@ proc newSaveRecord*(appDb: Database;
     # result.recExistMessage = "Save / update error or duplicate records exist: "
     # result.unAuthMessage = "Action / task not authorised or permitted "
 
-
 proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
     try:
         # create script from rec param
