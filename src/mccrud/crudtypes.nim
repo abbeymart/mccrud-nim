@@ -196,6 +196,21 @@ type
     TaskRecord* = object
         taskRec*: seq[QueryParam]
 
+    # Exception types
+    SaveError* = object of CatchableError
+    CreateError* = object of CatchableError
+    UpdateError* = object of CatchableError
+    DeleteError* = object of CatchableError
+    ReadError* = object of CatchableError
+    AuthError* = object of CatchableError
+    ConnectError* = object of CatchableError
+    SelectQueryError* = object of CatchableError
+    WhereQueryError* = object of CatchableError
+    CreateQueryError* = object of CatchableError
+    UpdateQueryError* = object of CatchableError
+    DeleteQueryError* = object of CatchableError
+
+
     ## Shared CRUD Operation Types  
     CrudParam* = ref object
         ## collName: table/collection to insert, update, read or delete record(s).

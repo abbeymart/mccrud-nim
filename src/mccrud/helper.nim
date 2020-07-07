@@ -78,10 +78,10 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
         of "simple":
             var fieldCount = 0      # fieldCount: determine the current field count 
             for fieldItem in sortedFields:
-                fieldCount += 1
+                inc fieldCount
                 # check fieldName
                 if fieldItem.fieldName == "":
-                    unspecifiedFieldNameCount += 1
+                    inc unspecifiedFieldNameCount
                     continue
                 selectQuery.add(" ")
                 selectQuery.add(fieldItem.fieldName)
@@ -92,7 +92,7 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
         of "coll.field", "table.field":
             var fieldCount = 0
             for fieldItem in sortedFields:
-                fieldCount += 1
+                inc fieldCount
                 # check fieldName
                 if fieldItem.fieldName == "":
                     unspecifiedFieldNameCount += 1
@@ -117,13 +117,10 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
             echo "join"
         of "cases":
             echo "cases"
-        else:
-            echo "default"
         
         # raise exception or return empty select statement , if no fieldName was specified
         if(unspecifiedFieldNameCount == fieldLen):
-            raise newException(ValueError, "error: no field-names specified")
-            # return "error: no field-names specified"
+            raise newException(SelectQueryError, "error: no field-names specified")
         
         # add table/collection to select from
         selectQuery.add(" FROM ")
@@ -134,7 +131,7 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
 
     except:
         # raise exception or return empty select statement, for exception/error
-        raise newException(ValueError, getCurrentExceptionMsg())
+        raise newException(SelectQueryError, getCurrentExceptionMsg())
         # return ("error: " & getCurrentExceptionMsg())
 
 ## computeWhereQuery compose WHERE query from the whereParams
@@ -143,15 +140,14 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
     var whereQuery = " WHERE "
     var groupsLen = 0
     var unspecifiedFieldNameCount = 0 # variable to determine unspecified fieldNames
-    var unspecifiedGroupCount = 0
+    var unspecifiedGroupCount = 0   # variable to determine group with no fieldItem
 
     try:
         groupsLen = whereParams.len()
 
         # raise exception or return empty select statement , if no group was specified
-        if(groupsLen == 0 or groupsLen < 1):
-            raise newException(ValueError, "error: no where-groups specified")
-            # return "error: no where-groups specified"
+        if(groupsLen < 1):
+            raise newException(WhereQueryError, "error: no where-groups specified")
         
         # sort whereParams by groupOrder (ASC)
         var sortedGroups  = whereParams.sortedByIt(it.groupOrder)
@@ -213,7 +209,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery.add(groupItem.fieldValue)
                         fieldQuery.add("'")
                         fieldQuery.add(" ")
-                    else:
+                    of "int", "float", "number":
                         fieldQuery.add(" ")
                         fieldQuery.add(groupItem.fieldName)
                         fieldQuery.add(" <> ")
@@ -226,7 +222,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                     of "string", "uuid", "text", "varchar":
                         inc unspecifiedFieldNameCount
                         continue
-                    else:
+                    of "int", "float", "number":
                         fieldQuery.add(" ")
                         fieldQuery.add(groupItem.fieldName)
                         fieldQuery.add(" < ")
@@ -239,7 +235,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                     of "string", "uuid", "text", "varchar":
                         inc unspecifiedFieldNameCount
                         continue
-                    else:
+                    of "int", "float", "number":
                         fieldQuery.add(" ")
                         fieldQuery.add(groupItem.fieldName)
                         fieldQuery.add(" <= ")
@@ -252,7 +248,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                     of "string", "uuid", "text", "varchar":
                         inc unspecifiedFieldNameCount
                         continue
-                    else:
+                    of "int", "float", "number":
                         fieldQuery.add(" ")
                         fieldQuery.add(groupItem.fieldName)
                         fieldQuery.add(" >= ")
@@ -265,7 +261,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                     of "string", "uuid", "text", "varchar":
                         inc unspecifiedFieldNameCount
                         continue
-                    else:
+                    of "int", "float", "number":
                         fieldQuery.add(" ")
                         fieldQuery.add(groupItem.fieldName)
                         fieldQuery.add(" > ")
@@ -274,9 +270,9 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                     if groupItem.groupOp != "" and itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "in", "includes":
-                    # include values from SELECT query (e.g. lookup table/collection)
                     var inValues = "("
                     if groupItem.fieldSubQuery != QueryParam():
+                        # include values from SELECT query (e.g. lookup table/collection)
                         let fieldSubQuery = groupItem.fieldSubQuery
                         let fieldSelectQuery = computeSelectQuery(fieldSubQuery.collName, fieldSubQuery)
                         let fieldWhereQuery = computeWhereQuery(fieldSubQuery.whereParams)
@@ -308,7 +304,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                                 inValues.add(itemValue)
                                 if valCount < groupItem.fieldValues.len:
                                     inValues.add(", ")
-                            inValues.add(")")
+                            inValues.add(") ")
                 
                         if groupItem.groupOp != "" and itemsLen > 1 and itemCount < itemsLen:
                             fieldQuery = fieldQuery & " " & fieldname & " IN " & (inValues) & " " & groupItem.groupOp
@@ -317,12 +313,12 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
             if unspecifiedFieldNameCount == itemCount:
                 continue
             # add closing bracket to complete the group-items query/script
-            fieldQuery = fieldQuery & " )"
+            fieldQuery = fieldQuery & " ) "
             
             # validate acceptable groupLinkOperators (and || or)
             var groupLnOp = @["and", "or"]
-            if groupLnOp.contains(group.groupLinkOp):
-                raise newException(ValueError, "unacceptable group-link-operator (should be 'and', 'or')")
+            if not groupLnOp.contains(group.groupLinkOp):
+                raise newException(WhereQueryError, "unacceptable group-link-operator (should be 'and', 'or')")
             
             # add optional groupLinkOp, if groupsLen > 1
             if groupsLen > 1 and groupCount < groupsLen and group.groupLinkOp != "":
@@ -334,11 +330,15 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                 
             # compute where-script from the group-script, append in sequence by groupOrder 
             whereQuery = whereQuery & " " & fieldQuery
-        # TODO: check WHERE script contains at least one condition, otherwise return empty string
         
+        # check WHERE script contains at least one condition, otherwise raise an exception
+        if unspecifiedGroupCount == groupCount:
+            raise newException(WhereQueryError, "no valide where condition specified")
+        else:
+            return whereQuery
     except:
         # raise exception or return empty select statement, for exception/error
-        raise newException(ValueError, getCurrentExceptionMsg())
+        raise newException(WhereQueryError, getCurrentExceptionMsg())
 
 ## createScript compose insert SQL script
 ## 
