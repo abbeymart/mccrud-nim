@@ -342,12 +342,12 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
 
 ## createScript compose insert SQL script
 ## 
-proc computeCreateScript*(collName: string, queryParams: seq[QueryParam]): seq[string] =
+proc computeCreateScript*(collName: string, actionParams: seq[QueryParam]): seq[string] =
     # create script from queryParams
         var createScripts: seq[string] = @[]
         
         try:
-            for item in queryParams:
+            for item in actionParams:
                 var itemScript = "INSERT INTO " & collName & " ("
                 var itemValues = " VALUES("
                 var 
@@ -388,11 +388,11 @@ proc computeCreateScript*(collName: string, queryParams: seq[QueryParam]): seq[s
 
 ## updateScript compose update SQL script
 ## 
-proc computeUpdateScript*(collName: string, queryParams: seq[QueryParam], docIds: seq[string]): seq[string] =
+proc computeUpdateScript*(collName: string, actionParams: seq[QueryParam], docIds: seq[string]): seq[string] =
     # updated script from queryParams  
         try:
             var updateScripts: seq[string] = @[]
-            for item in queryParams:
+            for item in actionParams:
                 var 
                     itemScript = "UPDATE " & collName & " SET"
                     fieldCount = 0
