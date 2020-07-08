@@ -191,7 +191,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery.add(groupItem.fieldValue)
                         fieldQuery.add("'")
                         fieldQuery.add(" ")
-                    else:
+                    of "int", "float", "number", "bool", "boolean":
                         fieldQuery.add(" ")
                         fieldQuery.add(groupItem.fieldName)
                         fieldQuery.add(" = ")
@@ -209,7 +209,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery.add(groupItem.fieldValue)
                         fieldQuery.add("'")
                         fieldQuery.add(" ")
-                    of "int", "float", "number":
+                    of "int", "float", "number", "bool", "boolean":
                         fieldQuery.add(" ")
                         fieldQuery.add(groupItem.fieldName)
                         fieldQuery.add(" <> ")
@@ -333,7 +333,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
         
         # check WHERE script contains at least one condition, otherwise raise an exception
         if unspecifiedGroupCount == groupCount:
-            raise newException(WhereQueryError, "no valide where condition specified")
+            raise newException(WhereQueryError, "no valid where condition specified")
         else:
             return whereQuery
     except:
@@ -354,10 +354,10 @@ proc computeCreateScript*(collName: string, actionParams: seq[QueryParam]): seq[
                     fieldCount = 0
                     missingField = 0
                 for field in item.fieldItems:
-                    fieldCount += 1
+                    inc fieldCount
                     # check missing fieldName/Value
                     if field.fieldName == "" or field.fieldValue == "":
-                        missingField += 1
+                        inc missingField
                         continue
                     itemScript.add(" ")
                     itemScript.add(field.fieldName)
@@ -384,7 +384,7 @@ proc computeCreateScript*(collName: string, actionParams: seq[QueryParam]): seq[
             return createScripts
         except:
             # raise exception or return empty select statement, for exception/error
-            raise newException(ValueError, getCurrentExceptionMsg())
+            raise newException(CreateQueryError, getCurrentExceptionMsg())
 
 ## updateScript compose update SQL script
 ## 
@@ -398,10 +398,10 @@ proc computeUpdateScript*(collName: string, actionParams: seq[QueryParam], docId
                     fieldCount = 0
                     missingField = 0
                 for field in item.fieldItems:
-                    fieldCount += 1
+                    inc fieldCount
                     # check missing fieldName/Value
                     if field.fieldName == "" or field.fieldValue == "":
-                        missingField += 1
+                        inc missingField
                         continue
                     itemScript.add(" ")
                     itemScript.add(field.fieldName)
@@ -423,7 +423,7 @@ proc computeUpdateScript*(collName: string, actionParams: seq[QueryParam], docId
             return updateScripts
         except:
             # raise exception or return empty select statement, for exception/error
-            raise newException(ValueError, getCurrentExceptionMsg())
+            raise newException(UpdateQueryError, getCurrentExceptionMsg())
 
 ## deleteByIdScript compose delete SQL script by id(s) 
 ## 
@@ -431,7 +431,7 @@ proc computeDeleteByIdScript*(collName: string, docIds:seq[string]): string =
         try:
             var deleteScripts: string = ""
             if docIds.len < 1:
-                raise newException(ValueError, "record id(s) is(are) required for delete operation")
+                raise newException(DeleteQueryError, "record id(s) is(are) required for delete operation")
             deleteScripts = "DELETE FROM " & collName & " WHERE id IN("
             var idCount = 0
             for id in docIds:
@@ -444,7 +444,7 @@ proc computeDeleteByIdScript*(collName: string, docIds:seq[string]): string =
             return deleteScripts
         except:
             # raise exception or return empty select statement, for exception/error
-            raise newException(ValueError, getCurrentExceptionMsg())
+            raise newException(DeleteQueryError, getCurrentExceptionMsg())
 
 ## deleteByParamScript compose delete SQL script by params
 proc computeDeleteByParamScript*(collName: string, whereParams: seq[WhereParam]): string =
@@ -452,25 +452,25 @@ proc computeDeleteByParamScript*(collName: string, whereParams: seq[WhereParam])
             var deleteScripts: string = ""
             let whereParam = computeWhereQuery(whereParams)
             if whereParams.len < 1 or whereParam == "":
-                raise newException(ValueError, "where condition is required for delete operation")
+                raise newException(WhereQueryError, "where condition is required for delete operation")
             deleteScripts = "DELETE FROM " & collName & " " & whereParam
             return deleteScripts
         except:
             # raise exception or return empty select statement, for exception/error
-            raise newException(ValueError, getCurrentExceptionMsg())
+            raise newException(DeleteQueryError, getCurrentExceptionMsg())
 
 ## selectByIdScript compose select SQL script by id(s) 
 ## 
 proc computeSelectByIdScript*(collName: string, docIds:seq[string]): string =
         try:
             if docIds.len < 1:
-                raise newException(ValueError, "record id(s) is(are) required for delete operation")
+                raise newException(SelectQueryError, "record id(s) is(are) required for select/read operation")
             var currentRecScript = "SELECT * FROM "
             currentRecScript.add(collName)
             currentRecScript.add(" WHERE id IN (")
             var idCount =  0
             for id in docIds:
-                idCount += 1
+                inc idCount
                 currentRecScript.add("'")
                 currentRecScript.add(id)
                 currentRecScript.add("'")
@@ -480,4 +480,4 @@ proc computeSelectByIdScript*(collName: string, docIds:seq[string]): string =
             return currentRecScript
         except:
             # raise exception or return empty select statement, for exception/error
-            raise newException(ValueError, getCurrentExceptionMsg())
+            raise newException(SelectQueryError, getCurrentExceptionMsg())
