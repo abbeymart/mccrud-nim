@@ -100,11 +100,11 @@ proc newCrud*(appDb: Database;
     # translog instance
     result.transLog = newLog(result.auditDb, result.auditColl)
 
-## getRoleServices retur the role-service records for the authorized user and transactions
+## getRoleServices returns the role-service records for the authorized user and transactions
 proc getRoleServices*(
                     accessDb: Database;
                     userGroup: string;
-                    serviceIds: seq[string];   # for any tasks (record, coll/table, function...)
+                    serviceIds: seq[string];   # for any tasks (record, coll/table, function, package, solution...)
                     roleColl: string = "roles"
                     ): seq[RoleService] =
     var roleServices: seq[RoleService] = @[]

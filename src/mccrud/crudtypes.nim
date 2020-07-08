@@ -182,7 +182,7 @@ type
     CheckAccess* = object
         userId*: string
         userRole*: string
-        userRoles*: seq[string]
+        userRoles*: JsonNode
         isActive*: bool
         isAdmin*: bool
         roleServices*: seq[RoleService]
