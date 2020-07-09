@@ -21,7 +21,7 @@ proc newSaveRecord*(appDb: Database;
                     actionParams: seq[QueryParam]; 
                     options: Table[string, ValueType]): CrudParam =
     ## base / shared constructor
-    result = newCrud(appDb, collName, userInfo, actionParams = actionParams, options )
+    result = newCrud(appDb, collName, userInfo, actionParams = actionParams, options = options )
     
     ## specific/sub-set constructor variable
     result.docIds = @[]
@@ -116,8 +116,8 @@ proc saveRecord*(crud: CrudParam): ResponseMessage =
         for rec in crud.actionParams:
             ## determine if record existed (update) or is new (create)
             proc itemExist(it: FieldItem; recId: var string): bool =
-                recId = it.fieldName 
-                it.fieldName == "id"
+                recId = it.fieldValue
+                it.fieldName == "id" and it.fieldValue != ""
             var recId = ""
             if rec.fieldItems.anyIt(itemExist(it, recId)):
                 updateRecs.add(rec)
@@ -142,7 +142,6 @@ proc saveRecord*(crud: CrudParam): ResponseMessage =
             var taskPermit = taskPermission(crud, "update")
             let taskValue = taskPermit.value{"ok"}.getBool(false)
             if taskValue and taskPermit.code == "success":
-                echo "process task"
                 # update existing record(s)
                 return updateRecord(crud, updateRecs)
             else:

@@ -21,10 +21,10 @@ proc newGetRecord*(appDb: Database;
                     docIds: seq[string] = @[]; 
                     options: Table[string, ValueType]): CrudParam =
     ## base / shared constructor
-    result = newCrud(appDb, collName, userInfo, whereParams = whereParams, options )
+    result = newCrud(appDb, collName, userInfo, whereParams = whereParams, options = options )
     
     ## specific/sub-set constructor variable
-    result.docIds = @[]
+    result.docIds = docIds
     result.currentRecords = @[]
 
     result.roleServices = @[]
