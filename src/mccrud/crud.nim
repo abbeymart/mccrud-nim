@@ -161,7 +161,7 @@ proc checkAccess*(
             return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: please ensure that you are logged-in") )
 
         # check current current-user status/info
-        let userQuery = sql("SELECT id, default_group, groups, is_active, profile FROM " & userColl &
+        let userQuery = sql("SELECT id, active_group, groups, is_active, profile FROM " & userColl &
                             " WHERE id = " & userInfo.id & " AND is_active = true")
 
         let currentUser = accessDb.db.getRow(userQuery)
@@ -170,14 +170,13 @@ proc checkAccess*(
             return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Unauthorized: user information not found or inactive") )
 
         # if all the above checks passed, check for role-services access by taskType
-        # check access by taskType
-        # obtain collName - collId (id) from serviceColl/Table
+        # obtain collName - collId (id) from serviceColl/Table (holds all accessible resources)
         var collInfoQuery = sql("SELECT id from " & serviceColl &
                                 " WHERE name = " & collName )
 
         let collInfo = accessDb.db.getRow(collInfoQuery)
 
-        # include collId and docIds in serviceIds
+        # if permitted, include collId and docIds in serviceIds
         var serviceIds = docIds
         if collInfo.len() > 0:
             serviceIds.add(collInfo[0])
@@ -189,7 +188,8 @@ proc checkAccess*(
                                         serviceIds = serviceIds,
                                         userGroup = currentUser[1],
                                         roleColl = roleColl)
-        
+        # userRoles: {roles: ["cd", "ef", "gh"]}
+        # TODO: check/validate parseJson result of the currentUser jsonb string value
         let accessRes = CheckAccess(userId: currentUser[0],
                                     userRole: currentUser[1],
                                     userRoles: parseJson(currentUser[2]),
@@ -235,30 +235,33 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
         # validation access variables   
         var taskPermitted, ownerPermitted, recordPermitted, collPermitted, isAdmin: bool = false
 
-        # ownership (i.e. created by userId) for all currentRecords (update/delete...)
-        if crud.docIds.len() > 0:
-            var selectQuery = "SELECT id, created_by, updated_by, created_date, updated_date FROM "
-            selectQuery.add(crud.collName)
-            selectQuery.add(" ")
-            var whereQuery= " WHERE id IN ("
-            whereQuery.add(crud.docIds.join(", "))
-            whereQuery.add(" AND ")
-            whereQuery.add("created_by = ")
-            whereQuery.add(crud.userInfo.id)
-            whereQuery.add(" ")    
-
-            var reqQuery = sql(selectQuery & " " & whereQuery)
-
-            var ownedRecs = crud.appDb.db.getAllRows(reqQuery)
-            if ownedRecs.len() == crud.docIds.len():
-                ownerPermitted = true    
-
         # check role-based access
         var accessRes = checkAccess(accessDb = crud.accessDb, collName = crud.collName,
                                     docIds = crud.docIds, userInfo = crud.userInfo )
+
         if accessRes.code == "success":
             # get access info value (json) => toObject
             let accessInfo = to(accessRes.value, CheckAccess)
+
+            # ownership (i.e. created by userId) for all currentRecords (update/delete...)
+            let accessUserId = accessInfo.userId
+            if crud.docIds.len() > 0 and accessUserId != "":
+                var selectQuery = "SELECT id, created_by, updated_by, created_at, updated_at FROM "
+                selectQuery.add(crud.collName)
+                selectQuery.add(" ")
+                var whereQuery= " WHERE id IN ("
+                whereQuery.add(crud.docIds.join(", "))
+                whereQuery.add(" AND ")
+                whereQuery.add("created_by = ")
+                whereQuery.add(accessUserId)
+                whereQuery.add(" ")    
+
+                var reqQuery = sql(selectQuery & " " & whereQuery)
+
+                var ownedRecs = crud.appDb.db.getAllRows(reqQuery)
+                # ensure all records are owned by the current user (re: accessUserId)
+                if ownedRecs.len() == crud.docIds.len():
+                    ownerPermitted = true    
 
             isAdmin = accessInfo.isAdmin
             let
@@ -266,11 +269,15 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
                 # userRole = accessInfo.userRole
                 # userRoles = accessInfo.userRoles
                 isActive = accessInfo.isActive
-                roleServices = accessInfo.roleServices # TODO: check value: object or parsed-json (transform to object)
+                roleServices = accessInfo.roleServices
 
             # validate active status
             if not isActive:
                 return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "Your account is not active"))
+
+            # validate roleServices permission
+            if roleServices.len < 1:
+                return getResMessage("unAuthorized", ResponseMessage(value: nil, message: "You are not authorized to perform the requested action/task"))
 
             # filter the roleServices by categories ("collection | table" and "record or document") 
             proc tableFunc(item: RoleService): bool = 
@@ -288,14 +295,16 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
                 proc collFunc(item: RoleService): bool = 
                     item.canCreate
                 # collection/table level access | only collName Id was included in serviceIds
-                collPermitted = roleTables.allIt(collFunc(it))
+                if roleTables.len > 0:
+                    collPermitted = roleTables.allIt(collFunc(it))
 
             of "update":
                 proc collFunc(item: RoleService): bool = 
                     item.canUpdate
                 # collection/table level access
-                collPermitted = roleTables.allIt(collFunc(it))
-                # document/record level access
+                if roleTables.len > 0:
+                    collPermitted = roleTables.allIt(collFunc(it))
+                # document/record level access: all docIds must have at least a match in the roleRecords
                 proc recRoleFunc(it1: string; it2: RoleService): bool = 
                     (it2.service_id == it1 and it2.canUpdate)
 
@@ -308,8 +317,9 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
                 proc collFunc(item: RoleService): bool = 
                     item.canDelete
                 # collection/table level access
-                collPermitted = roleTables.allIt(collFunc(it))
-                # document/record level access
+                if roleTables.len > 0:
+                    collPermitted = roleTables.allIt(collFunc(it))
+                # document/record level access: all docIds must have at least a match in the roleRecords
                 proc recRoleFunc(it1: string; it2: RoleService): bool = 
                     (it2.service_id == it1 and it2.canDelete)
 
@@ -323,8 +333,9 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
                 proc collFunc(item: RoleService): bool = 
                     item.canRead
                 # collection/table level access
-                collPermitted = roleTables.allIt(collFunc(it))
-                # document/record level access
+                if roleTables.len > 0:
+                    collPermitted = roleTables.allIt(collFunc(it))
+                # document/record level access: all docIds must have at least a match in the roleRecords
                 proc recRoleFunc(it1: string; it2: RoleService): bool = 
                     (it2.service_id == it1 and it2.canRead)
 
@@ -333,7 +344,10 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
                 
                 if crud.docIds.len > 0:
                     recordPermitted = crud.docIds.allIt(recFunc(it))
-
+        else:
+            let ok = OkayResponse(ok: false)
+            return getResMessage("unAuthorized", ResponseMessage(value: %*(ok), message: "You are not authorized to perform the requested action/task"))
+        
         # overall access permitted
         taskPermitted = recordPermitted or collPermitted or ownerPermitted or isAdmin
         let ok = OkayResponse(ok: taskPermitted)
