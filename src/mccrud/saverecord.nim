@@ -35,7 +35,7 @@ proc newSaveRecord*(appDb: Database;
 proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
     try:
         # create script from rec param
-        var createScripts:seq[string] = computeCreateScript(crud.collName, rec)
+        var createScripts: seq[string] = computeCreateScript(crud.collName, rec)
         
         ## perform create/insert action
         ## wrap in transaction
@@ -53,7 +53,7 @@ proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
             discard crud.transLog.createLog(tabName, collValues, userId)
         
         # response
-        return getResMessage("success", ResponseMessage(value: nil, message: "Record(s) updated successfully"))
+        return getResMessage("success", ResponseMessage(value: nil, message: "Record(s) created successfully"))
     except:
         let okRes = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
@@ -70,7 +70,7 @@ proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
         currentRecScript.add(" WHERE id IN (")
         var idCount =  0
         for id in crud.docIds:
-            idCount += 1
+            inc idCount
             currentRecScript.add("'")
             currentRecScript.add(id)
             currentRecScript.add("'")
