@@ -19,14 +19,11 @@ import crud
 proc newDeleteRecord*(appDb: Database;
                     collName: string;
                     userInfo: UserParam;
-                    actionParams: seq[QueryParam];
+                    whereParams: seq[QueryParam];
                     docIds: seq[string] = @[]; 
                     options: Table[string, ValueType]): CrudParam =
     ## base / shared constructor
-    result = newCrud(appDb, collName, userInfo, actionParams = actionParams, options = options )
-    
-    ## specific/sub-set constructor variable
-    result.docIds = docIds
+    result = newCrud(appDb, collName, userInfo, whereParams = whereParams, docIds = docIds, options = options )
 
 ## Delete or remove record(s) by id(s)
 ## 
@@ -109,7 +106,6 @@ proc deleteRecord*(crud: CrudParam; by: string;
                     whereParams: seq[WhereParam] = @[]): ResponseMessage =
     ## perform delete task, by taskType (id or params/query)
     try:
-
         # update crud instance ref-variables
         if crud.docIds.len < 1 and docIds.len > 0:
             crud.docIds = docIds
@@ -119,9 +115,9 @@ proc deleteRecord*(crud: CrudParam; by: string;
         # validate required inputs by action-type
         if by == "id" and crud.docIds.len < 1:
             # return error message
-            return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by id (docIds[]) is required"))
+            return getResMessage("paramsError", ResponseMessage(value: nil, message: "Fod delete by id, docIds[] is required"))
         elif whereParams.len < 1:
-            return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by params (whereParams) is required"))
+            return getResMessage("paramsError", ResponseMessage(value: nil, message: "For delete by params, whereParams is required"))
         
         case by:
         of "id":
@@ -132,7 +128,7 @@ proc deleteRecord*(crud: CrudParam; by: string;
                 # delete record(s) by id
                 return deleteRecordById(crud)
             else:
-                # return task permission reponse
+                # return task permission response (unAuthorized)
                 return taskPermit
         of "params", "query":
             # check permission based on the create and/or update records
@@ -142,7 +138,7 @@ proc deleteRecord*(crud: CrudParam; by: string;
                 # delete record(s) by params/query
                 return deleteRecordByParam(crud)
             else:
-                # return task permission reponse
+                # return task permission response (unAuthorized)
                 return taskPermit
     except:
         let okRes = OkayResponse(ok: false)
