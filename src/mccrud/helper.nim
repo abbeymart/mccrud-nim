@@ -69,7 +69,9 @@ proc computeSelectQuery*(collName: string;
                     selectQuery.add(field)
                     selectQuery.add(" ")
             # SELECT all fields in the table / collection
-            selectQuery.add(" * FROM ")
+            else:
+                selectQuery.add(" * ")
+            selectQuery.add(" FROM ")
             selectQuery.add(collName)
             selectQuery.add(" ")
             return selectQuery
