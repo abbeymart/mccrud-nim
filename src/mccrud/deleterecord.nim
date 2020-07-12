@@ -31,10 +31,10 @@ proc deleteRecordById(crud: CrudParam): ResponseMessage =
         let currentRecScript = computeSelectByIdScript(crud.collName, crud.docIds)
         let currentRecs =  crud.appDb.db.getAllRows(sql(currentRecScript))
 
-        # exit / return if currentRecs[0].len < 1
+        # exit / return if currentRecs[0].len < 1 or currentRecs.len < crud.docIds.len
         if currentRecs[0].len < 1 or currentRecs.len < crud.docIds.len:
             let okRes = OkayResponse(ok: false)
-            return getResMessage("notFound", ResponseMessage(value: %*(okRes), message: "No record(s) found"))  
+            return getResMessage("notFound", ResponseMessage(value: %*(okRes), message: "No or less record(s) found"))  
         
         ## compute delete script from docIds
         let deleteScripts: string = computeDeleteByIdScript(crud.collName, crud.docIds)

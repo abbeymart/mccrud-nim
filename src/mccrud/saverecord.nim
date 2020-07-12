@@ -18,19 +18,11 @@ import crud, sequtils
 proc newSaveRecord*(appDb: Database;
                     collName: string;
                     userInfo: UserParam;
-                    actionParams: seq[QueryParam]; 
+                    actionParams: seq[QueryParam];
+                    docIds: seq[string] = @[]; 
                     options: Table[string, ValueType]): CrudParam =
     ## base / shared constructor
-    result = newCrud(appDb, collName, userInfo, actionParams = actionParams, options = options )
-    
-    ## specific/sub-set constructor variable
-    result.docIds = @[]
-    # result.currentRecords = @[]
-    # result.roleServices = @[]
-    # result.isRecExist = false
-    # result.isAuthorized = false
-    # result.recExistMessage = "Save / update error or duplicate records exist: "
-    # result.unAuthMessage = "Action / task not authorised or permitted "
+    result = newCrud(appDb, collName, userInfo, actionParams = actionParams, docIds = docIds, options = options )
 
 proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
     try:
@@ -43,17 +35,18 @@ proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
         for item in createScripts:
             crud.appDb.db.exec(sql(item))
         crud.appDb.db.exec(sql"COMMIT")
+        
+        # records count
+        let recCnt = createScripts.len
 
         # perform audit/trans-log action
-        let 
-            tabName = crud.collName
-            collValues = %*(TaskRecord(taskRec: rec))
-            userId = crud.userInfo.id
+        let collValues = %*(TaskRecord(taskRec: rec, recCount: recCnt ))
         if crud.logCreate:
-            discard crud.transLog.createLog(tabName, collValues, userId)
+            discard crud.transLog.createLog(crud.collName, collValues, crud.userInfo.id)
         
         # response
-        return getResMessage("success", ResponseMessage(value: nil, message: "Record(s) created successfully"))
+        
+        return getResMessage("success", ResponseMessage(value: %*(TaskRecord(recCount: recCnt)), message: "Record(s) created successfully"))
     except:
         let okRes = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
@@ -62,7 +55,7 @@ proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
     try:
         ## update script from rec param
         var updateScripts: seq[string] = computeUpdateScript(crud.collName, rec, crud.docIds)
-        
+
         ## perform update action
         ## get current records
         var currentRecScript = "SELECT * FROM "
@@ -80,23 +73,29 @@ proc updateRecord(crud: CrudParam, rec: seq[QueryParam]): ResponseMessage =
 
         let currentRecs =  crud.appDb.db.getAllRows(sql(currentRecScript))
 
+        # exit / return if currentRecs[0].len < 1 or currentRecs.len < updateScripts.len
+        if currentRecs[0].len < 1 or currentRecs.len < updateScripts.len:
+            let okRes = OkayResponse(ok: false)
+            return getResMessage("notFound", ResponseMessage(value: %*(okRes), message: "No or less record(s) found"))  
+        
         # wrap in transaction
         crud.appDb.db.exec(sql"BEGIN")
         for item in updateScripts:
             crud.appDb.db.exec(sql(item))
         crud.appDb.db.exec(sql"COMMIT")
 
+        # records count
+        let recCnt = updateScripts.len
+
         # perform audit/trans-log action
         let 
-            tabName = crud.collName
             collValues = %*(CurrentRecord(currentRec: currentRecs))
-            collNewValues = %*(TaskRecord(taskRec: rec))
-            userId = crud.userInfo.id
+            collNewValues = %*(TaskRecord(taskRec: rec, recCount: updateScripts.len))
         if crud.logUpdate:
-            discard crud.transLog.updateLog(tabName, collValues, collNewValues, userId)
+            discard crud.transLog.updateLog(crud.collName, collValues, collNewValues, crud.userInfo.id)
 
         # response
-        return getResMessage("success", ResponseMessage(value: nil, message: "Record(s) updated successfully"))
+        return getResMessage("success", ResponseMessage(value: %*(TaskRecord(recCount: recCnt)), message: "Record(s) updated successfully"))
     except:
         let okRes = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))  
@@ -109,15 +108,15 @@ proc saveRecord*(crud: CrudParam): ResponseMessage =
     ## determine taskType from actionParams: create or update
     ## iterate through actionParams, update createRecs, updateRecs & crud.docIds
     var 
-        createRecs: seq[QueryParam] = @[]    ## include records with fieldName != "id"
-        updateRecs: seq[QueryParam] = @[]    ## include records with fieldName == "id"
+        createRecs: seq[QueryParam] = @[]    ## include records with fieldName != "id" (or _id)
+        updateRecs: seq[QueryParam] = @[]    ## include records with fieldName == "id" (or _id)
 
     try:
         for rec in crud.actionParams:
             ## determine if record existed (update) or is new (create)
             proc itemExist(it: FieldItem; recId: var string): bool =
                 recId = it.fieldValue
-                it.fieldName == "id" and it.fieldValue != ""
+                (it.fieldName == "id" or it.fieldName == "_id") and it.fieldValue != ""
             var recId = ""
             if rec.fieldItems.anyIt(itemExist(it, recId)):
                 updateRecs.add(rec)

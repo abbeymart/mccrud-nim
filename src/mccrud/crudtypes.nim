@@ -195,6 +195,7 @@ type
     
     TaskRecord* = object
         taskRec*: seq[QueryParam]
+        recCount*: Positive 
 
     # Exception types
     SaveError* = object of CatchableError
