@@ -49,7 +49,6 @@ proc strToTime*(val: string): Time =
         # return the current time
         return Time()
 
-
 ## computeSelectByIdScript compose select SQL script by id(s) 
 ## 
 proc computeSelectByIdScript*(collName: string; docIds:seq[string]; fields: seq[string] = @[] ): string =
@@ -69,6 +68,8 @@ proc computeSelectByIdScript*(collName: string; docIds:seq[string]; fields: seq[
                 selectQuery.add(field)
                 if fieldLen > 1 and fieldCount < fieldLen:
                     selectQuery.add(", ")
+            selectQuery.add(" FROM ")
+            selectQuery.add(collName)
             selectQuery.add(" WHERE id IN (")
             var idCount =  0
             for id in docIds:
@@ -92,6 +93,7 @@ proc computeSelectByIdScript*(collName: string; docIds:seq[string]; fields: seq[
                 if docIdLen > 1 and idCount < docIdLen:
                     selectQuery.add(", ")
             selectQuery.add(" )")
+        
         return selectQuery
     except:
         # raise exception or return empty select statement, for exception/error
@@ -104,10 +106,10 @@ proc computeSelectQuery*(collName: string;
                         queryType: string = "simple";
                         fields: seq[string] = @[]): string =
     if collName == "" or queryParam == QueryParam():
-        raise newException(SelectQueryError, "table/collection name and query-param are required for the select/read operation")                    
-    # initialize variable to compose the select-query
+        raise newException(SelectQueryError, "Table/collection name and query-param are required for the select/read operation")                    
     
     try:
+        # script, sorting, valid group item count variables
         var selectQuery = ""
         var sortedFields: seq[FieldItem] = @[]
         var fieldLen = 0                  # number of fields in the SELECT statement/query         
@@ -129,6 +131,8 @@ proc computeSelectQuery*(collName: string;
             # SELECT all fields in the table / collection
             else:
                 selectQuery.add("SELECT * ")
+
+            # add remaining query/script information 
             selectQuery.add(" FROM ")
             selectQuery.add(collName)
             selectQuery.add(" ")
@@ -151,7 +155,7 @@ proc computeSelectQuery*(collName: string;
                 if fieldItem.fieldName == "":
                     inc unspecifiedGroupItemCount
                     continue
-                inc fieldCount
+                inc fieldCount      # count valid field
                 selectQuery.add(fieldItem.fieldName)
                 if fieldLen > 1 and fieldCount < (fieldLen - unspecifiedGroupItemCount):
                     selectQuery.add(", ")
@@ -165,7 +169,7 @@ proc computeSelectQuery*(collName: string;
                 if fieldItem.fieldName == "":
                     inc unspecifiedGroupItemCount
                     continue
-                inc fieldCount        
+                inc fieldCount      # count valid field  
                 if fieldItem.fieldColl != "":
                     selectQuery.add(" ")
                     selectQuery.add(fieldItem.fieldColl)
@@ -182,11 +186,12 @@ proc computeSelectQuery*(collName: string;
                         selectQuery.add(", ")
                     else:
                         selectQuery.add(" ")
-        of "join":
-            echo "join"
-        of "cases":
-            echo "cases"
+        # of "join":
+        #     echo "TODO - join query"
+        # of "cases":
+        #     echo "TODO - cases query"
         else:
+            # TODO: add join, cases etc queries...
             raise newException(SelectQueryError, "Unknown query type")
         # raise exception or return empty select statement , if no fieldName was specified
         if(unspecifiedGroupItemCount == fieldLen):
@@ -204,27 +209,28 @@ proc computeSelectQuery*(collName: string;
         raise newException(SelectQueryError, getCurrentExceptionMsg())
 
 ## computeWhereQuery compose WHERE query from the whereParams
+## 
 proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
     if whereParams.len < 1 :
-                raise newException(WhereQueryError, "where-params is required for the where condition(s)")
+                raise newException(WhereQueryError, "Where-params is required for the where condition(s)")
     
+    # compute where script from whereParams
     try:
-        # initialize variable to compose where-query
+        # initialize group validation variables
         var groupsLen = 0
         var unspecifiedGroupCount = 0   # variable to determine group with empty/no fieldItems
 
         groupsLen = whereParams.len()
 
-        # raise exception or return empty select statement , if no group was specified
+        # raise exception, if no group was specified or empty
         if(groupsLen < 1):
             raise newException(WhereQueryError, "No where-groups specified")
 
         # sort whereParams by groupOrder (ASC)
         var sortedGroups  = whereParams.sortedByIt(it.groupOrder)
 
-        # variables to determine the end of groups and group-items
-        var 
-            groupCount = 0          # valid group count, i.e. group with groupItems
+        # variable for valid group count, i.e. group with groupItems
+        var groupCount = 0          
             
         # iterate through whereParams (groups)
         var whereQuery = " WHERE "
@@ -249,7 +255,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                 if groupItem.fieldName == "" or groupItem.fieldValue == "":
                     inc unspecifiedGroupItemCount
                     continue
-                inc groupItemCount
+                inc groupItemCount      # count valid groupItem
                 var fieldname = groupItem.fieldName
                 if groupItem.fieldColl != "":
                     fieldname = groupItem.fieldColl & "." & groupItem.fieldName
@@ -273,6 +279,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery.add(" ")
                     else:
                         raise newException(WhereQueryError, "Unknown or unsupported field type")
+                    
                     if groupItem.groupOp != "" and groupItemCount < (groupItemsLen - unspecifiedGroupItemCount):
                             fieldQuery = fieldQuery & " " & groupItem.groupOp
                 of "neq", "!=", "<>":
@@ -293,8 +300,9 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery.add(" ")
                     else:
                         raise newException(WhereQueryError, "Unknown or unsupported field type")
+                    
                     if groupItem.groupOp != "" and groupItemCount < (groupItemsLen - unspecifiedGroupItemCount):
-                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp & " "
                 of "lt", "<":
                     case groupItem.fieldType
                     of "string", "uuid", "text", "varchar":
@@ -308,8 +316,9 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery.add(" ")
                     else:
                         raise newException(WhereQueryError, "Unknown or unsupported field type")
+                    
                     if groupItem.groupOp != "" and groupItemCount < (groupItemsLen - unspecifiedGroupItemCount):
-                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp & " "
                 of "lte", "<=":
                     case groupItem.fieldType
                     of "string", "uuid", "text", "varchar":
@@ -323,8 +332,9 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery.add(" ")
                     else:
                         raise newException(WhereQueryError, "Unknown or unsupported field type")
+                    
                     if groupItem.groupOp != "" and groupItemCount < (groupItemsLen - unspecifiedGroupItemCount):
-                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp & " "
                 of "gte", ">=":
                     case groupItem.fieldType
                     of "string", "uuid", "text", "varchar":
@@ -338,8 +348,9 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery.add(" ")
                     else:
                         raise newException(WhereQueryError, "Unknown or unsupported field type")
+                    
                     if groupItem.groupOp != "" and groupItemCount < (groupItemsLen - unspecifiedGroupItemCount):
-                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp & " "
                 of "gt", ">":
                     case groupItem.fieldType
                     of "string", "uuid", "text", "varchar":
@@ -353,32 +364,35 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                         fieldQuery.add(" ")
                     else:
                         raise newException(WhereQueryError, "Unknown or unsupported field type")
+                    
                     if groupItem.groupOp != "" and groupItemCount < (groupItemsLen - unspecifiedGroupItemCount):
-                            fieldQuery = fieldQuery & " " & groupItem.groupOp
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp & " "
                 of "in", "includes":
-                    var inValues = "("
                     if groupItem.fieldSubQuery != QueryParam():
+                        var inValues = "("
                         # include values from SELECT query (e.g. lookup table/collection)
                         let fieldSubQuery = groupItem.fieldSubQuery
                         let fieldSelectQuery = computeSelectQuery(fieldSubQuery.collName, fieldSubQuery)
                         let fieldWhereQuery = computeWhereQuery(fieldSubQuery.whereParams)
                         inValues = fieldSelectQuery & " " & fieldWhereQuery & " )"
-                        if fieldSubQuery.collName != "":
-                            fieldQuery = fieldQuery & " " & fieldname & " IN " & (inValues)
-                            if groupItem.groupOp != "" and groupItemsLen > 1:
-                                fieldQuery = fieldQuery & " " & groupItem.groupOp
+                        
+                        fieldQuery = fieldQuery & " " & fieldname & " IN " & (inValues)
+                        
+                        if groupItem.groupOp != "" and groupItemCount < (groupItemsLen - unspecifiedGroupItemCount):
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp & " "
                     elif groupItem.fieldValues.len() > 0:
+                        let fieldValueLen = groupItem.fieldValues.len
                         # compose the IN values from fieldValues
                         var inValues = "("
-                        var valCount = 0
-                        var noValCount = 0
+                        var valCount = 0        # valid field value count
+                        var noValCount = 0      # invalid/missing field value count
                         for itemValue in groupItem.fieldValues:
-                            inc valCount
                             # check for value itemValue
-                            let itVal = $(itemValue)
+                            let itVal = $(itemValue)    # stringified for comparison check
                             if itVal == "":
                                 inc noValCount
                                 continue
+                            inc valCount
                             case groupItem.fieldType
                             of "string", "uuid", "text", "varchar":
                                 inValues.add("'")
@@ -388,12 +402,14 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
                                     inValues.add(", ")
                             else:
                                 inValues.add(itemValue)
-                                if valCount < groupItem.fieldValues.len:
+                                if fieldValueLen > 1 and valCount < (fieldValueLen - noValCount):
                                     inValues.add(", ")
-                            inValues.add(") ")
-                
+                        
+                        inValues.add(") ")
+                        fieldQuery = fieldQuery & " " & fieldname & " IN " & (inValues)
+                        
                         if groupItem.groupOp != "" and groupItemCount < (groupItemsLen - unspecifiedGroupItemCount):
-                            fieldQuery = fieldQuery & " " & fieldname & " IN " & (inValues) & " " & groupItem.groupOp
+                            fieldQuery = fieldQuery & " " & groupItem.groupOp & " "
                 else:
                     raise newException(WhereQueryError, "Unknown or unsupported field operator")        
             # continue to the next group iteration, if fieldItems is empty for the current group 
@@ -403,17 +419,15 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
             fieldQuery = fieldQuery & " ) "
             
             # validate acceptable groupLinkOperators (and || or)
+            var grpLinkOp = group.groupLinkOp
             var groupLnOp = @["and", "or"]
-            if not groupLnOp.contains(group.groupLinkOp):
-                raise newException(WhereQueryError, "Unacceptable group-link-operator (should be 'and', 'or')")
+            if grpLinkOp != "" and not groupLnOp.contains(grpLinkOp.toLower()):
+                grpLinkOp = "and"       # use "and" as default operator
+                # raise newException(WhereQueryError, "Unacceptable group-link-operator (should be 'and', 'or')")
             
             # add optional groupLinkOp, if groupsLen > 1
-            if groupsLen > 1 and groupCount < (groupsLen - unspecifiedGroupCount) and group.groupLinkOp != "":
-                fieldQuery = fieldQuery & " " & group.groupLinkOp.toUpper() & " "
-            elif groupsLen > 1 and groupCount < (groupsLen - unspecifiedGroupCount) and group.groupLinkOp == "":
-                fieldQuery = fieldQuery & " AND "   # default groupLinkOp => AND
-            else:
-                fieldQuery = fieldQuery & " "
+            if groupsLen > 1 and groupCount < (groupsLen - unspecifiedGroupCount):
+                fieldQuery = fieldQuery & " " & grpLinkOp.toUpper() & " "
                 
             # compute where-script from the group-script, append in sequence by groupOrder 
             whereQuery = whereQuery & " " & fieldQuery
@@ -421,8 +435,8 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
         # check WHERE script contains at least one condition, otherwise raise an exception
         if unspecifiedGroupCount == groupsLen:
             raise newException(WhereQueryError, "No valid where condition specified")
-        else:
-            return whereQuery
+        
+        return whereQuery
     except:
         # raise exception or return empty select statement, for exception/error
         raise newException(WhereQueryError, getCurrentExceptionMsg())
@@ -432,7 +446,8 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
 proc computeCreateScript*(collName: string, actionParams: seq[QueryParam]): seq[string] = 
     if collName == "" or actionParams.len < 1 :
         raise newException(CreateQueryError, "Table/collection name and action-params are required for the create operation")
-    # create script from queryParams    
+    
+    # computed create script from queryParams    
     try:
         var createScripts: seq[string] = @[]
         var invalidCreateItemCount = 0
@@ -456,6 +471,7 @@ proc computeCreateScript*(collName: string, actionParams: seq[QueryParam]): seq[
                     itemScript.add(", ")
                 else:
                     itemScript.add(" ")
+                
                 case field.fieldType
                 of "string", "uuid", "text", "varchar":
                     itemValues.add("'")
@@ -463,31 +479,36 @@ proc computeCreateScript*(collName: string, actionParams: seq[QueryParam]): seq[
                     itemValues.add("'")
                 else:
                     itemValues.add(field.fieldValue)
+                
                 if fieldLen > 1 and fieldCount < (fieldLen - missingField):
                     itemValues.add(", ")
                 else:
                     itemValues.add(" ")
             itemScript.add(" )")
             itemValues.add(" )")
-                
+
+            # validate/update script content based on valid field specifications 
             if fieldCount > 0:
                 inc createItemCount
                 createScripts.add(itemScript & itemValues)
             else:
                 inc invalidCreateItemCount
+        
+        # check is there was no valid create items
         if invalidCreateItemCount == actionParams.len:
             raise newException(CreateQueryError, "Invalid action-params")
+
         return createScripts
     except:
-        # raise exception or return empty select statement, for exception/error
         raise newException(CreateQueryError, getCurrentExceptionMsg())
 
 ## updateScript compose update SQL script
 ## 
 proc computeUpdateScript*(collName: string, actionParams: seq[QueryParam], docIds: seq[string]): seq[string] =
     if docIds.len < 1 or collName == "" or actionParams.len < 1 :
-        raise newException(UpdateQueryError, "table/collection name and action-params are required for the update operation")
-    # updated script from queryParams  
+        raise newException(UpdateQueryError, "Table/collection name, doc-ids and action-params are required for the update operation")
+    
+    # compute update script from queryParams  
     try:
         var updateScripts: seq[string] = @[]
         var invalidUpdateItemCount = 0
@@ -507,6 +528,7 @@ proc computeUpdateScript*(collName: string, actionParams: seq[QueryParam], docId
                 itemScript.add(" ")
                 itemScript.add(field.fieldName)
                 itemScript.add(" = ")
+                
                 case field.fieldType
                 of "string", "uuid", "text", "varchar":
                     itemScript.add("'")
@@ -519,26 +541,30 @@ proc computeUpdateScript*(collName: string, actionParams: seq[QueryParam], docId
                     itemScript.add(", ")
                 else:
                     itemScript.add(" ")
-
+            
+            # validate/update script content based on valid field specifications
             if fieldCount > 0:
                 inc updateItemCount
                 updateScripts.add(itemScript)
             else:
                 inc invalidUpdateItemCount
+        
+        # check is there was no valid update items
         if invalidUpdateItemCount == actionParams.len:
             raise newException(UpdateQueryError, "Invalid action-params")
+        
         return updateScripts
     except:
-        # raise exception or return empty select statement, for exception/error
         raise newException(UpdateQueryError, getCurrentExceptionMsg())
 
 ## deleteByIdScript compose delete SQL script by id(s) 
 ## 
 proc computeDeleteByIdScript*(collName: string, docIds:seq[string]): string =
     if docIds.len < 1 or collName == "":
-        raise newException(DeleteQueryError, "table/collection name and record id(s) are required for the delete operation")
+        raise newException(DeleteQueryError, "Table/collection name and record id(s) are required for the delete operation")
     try:
-        var deleteScripts: string = ""
+        var deleteScripts = ""
+        let docIdsLen = docIds.len
         deleteScripts = "DELETE FROM " & collName & " WHERE id IN("
         var idCount = 0
         for id in docIds:
@@ -546,22 +572,22 @@ proc computeDeleteByIdScript*(collName: string, docIds:seq[string]): string =
             deleteScripts.add("'")
             deleteScripts.add(id)
             deleteScripts.add("'")
-            if idCount < docIds.len:
+            if docIdsLen > 1 and idCount < docIdsLen:
                 deleteScripts.add(", ")
+        deleteScripts.add(")")
         return deleteScripts
     except:
-        # raise exception or return empty select statement, for exception/error
         raise newException(DeleteQueryError, getCurrentExceptionMsg())
 
 ## deleteByParamScript compose delete SQL script by params
+## 
 proc computeDeleteByParamScript*(collName: string, whereParams: seq[WhereParam]): string =
     if whereParams.len < 1 or collName == "":
         raise newException(DeleteQueryError, "Table/collection name and where-params are required for the delete operation")
     try:
-        var deleteScripts: string = ""
+        var deleteScripts = ""
         let whereParam = computeWhereQuery(whereParams)
         deleteScripts = "DELETE FROM " & collName & " " & whereParam
         return deleteScripts
     except:
-        # raise exception or return empty select statement, for exception/error
         raise newException(DeleteQueryError, getCurrentExceptionMsg())
