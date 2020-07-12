@@ -3,7 +3,7 @@
 #        (c) Copyright 2020 Abi Akindele (mconnect.biz)
 #
 #    See the file "LICENSE.md", included in this
-#    distribution, for details a bout the copyright / license.
+#    distribution, for details about the copyright / license.
 # 
 #                  CRUD Helper Procedures
 # 
