@@ -64,10 +64,15 @@ proc computeSelectQuery*(collName: string;
     try:
         if queryParam.fieldItems.len() < 1:
             if fields.len > 0:
+                var fieldCount = 0
                 # get record(s) based on projected/provided field names (seq[string])
                 for field in fields:
+                    inc fieldCount
                     selectQuery.add(field)
-                    selectQuery.add(" ")
+                    if fields.len > 1 and fieldCount < fields.len:
+                        selectQuery.add(", ")
+                    else:
+                        selectQuery.add(" ")
             # SELECT all fields in the table / collection
             else:
                 selectQuery.add(" * ")
@@ -475,37 +480,41 @@ proc computeSelectByIdScript*(collName: string; docIds:seq[string]; fields: seq[
         try:
             if docIds.len < 1:
                 raise newException(SelectQueryError, "record id(s) is(are) required for select/read operation")
-            var currentRecScript = ""
+            var selectQuery = ""
             if fields.len > 0:
+                var fieldCount = 0
                 # get record(s) based on projected/provided field names (seq[string])
                 for field in fields:
-                    currentRecScript.add ("SELECT ")
-                    currentRecScript.add(field)
-                    currentRecScript.add(" ")
-                    currentRecScript.add(" WHERE id IN (")
+                    selectQuery.add ("SELECT ")
+                    selectQuery.add(field)
+                    if fields.len > 1 and fieldCount < fields.len:
+                        selectQuery.add(", ")
+                    else:
+                        selectQuery.add(" ")
+                selectQuery.add(" WHERE id IN (")
                 var idCount =  0
                 for id in docIds:
                     inc idCount
-                    currentRecScript.add("'")
-                    currentRecScript.add(id)
-                    currentRecScript.add("'")
+                    selectQuery.add("'")
+                    selectQuery.add(id)
+                    selectQuery.add("'")
                     if idCount < docIds.len:
-                       currentRecScript.add(", ")
-                currentRecScript.add(" )")
+                       selectQuery.add(", ")
+                selectQuery.add(" )")
             else:
-                currentRecScript = "SELECT * FROM "
-                currentRecScript.add(collName)
-                currentRecScript.add(" WHERE id IN (")
+                selectQuery = "SELECT * FROM "
+                selectQuery.add(collName)
+                selectQuery.add(" WHERE id IN (")
                 var idCount =  0
                 for id in docIds:
                     inc idCount
-                    currentRecScript.add("'")
-                    currentRecScript.add(id)
-                    currentRecScript.add("'")
+                    selectQuery.add("'")
+                    selectQuery.add(id)
+                    selectQuery.add("'")
                     if idCount < docIds.len:
-                        currentRecScript.add(", ")
-                currentRecScript.add(" )")
-            return currentRecScript
+                        selectQuery.add(", ")
+                selectQuery.add(" )")
+            return selectQuery
         except:
             # raise exception or return empty select statement, for exception/error
             raise newException(SelectQueryError, getCurrentExceptionMsg())
