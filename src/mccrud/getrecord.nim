@@ -22,13 +22,6 @@ proc newGetRecord*(appDb: Database;
                     options: Table[string, ValueType]): CrudParam =
     ## base / shared constructor
     result = newCrud(appDb, collName, userInfo, whereParams = whereParams, docIds = docIds, options = options )
-    
-    ## specific/sub-set constructor variable
-    result.currentRecords = @[]
-    result.roleServices = @[]
-    result.recExistMessage = "Save / update error or duplicate records exist: "
-    result.unAuthMessage = "Action / task not authorised or permitted "
-
   
 proc getAllRecords*(crud: CrudParam; fields: seq[string] = @[]): ResponseMessage =  
     try:
