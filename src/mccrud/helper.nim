@@ -51,7 +51,10 @@ proc strToTime*(val: string): Time =
 
 ## computeSelectQuery compose SELECT query from the queryParam
 ## queryType => simple, join, cases, subquery, combined etc.
-proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: string = "simple"): string =
+proc computeSelectQuery*(collName: string;
+                        queryParam: QueryParam;
+                        queryType: string = "simple";
+                        fields: seq[string] = @[]): string =
     # initialize variable to compose the select-query
     var selectQuery = "SELECT"
     var sortedFields: seq[FieldItem] = @[]
@@ -60,6 +63,11 @@ proc computeSelectQuery*(collName: string; queryParam: QueryParam, queryType: st
 
     try:
         if queryParam.fieldItems.len() < 1:
+            if fields.len > 0:
+                # get record(s) based on projected/provided field names (seq[string])
+                for field in fields:
+                    selectQuery.add(field)
+                    selectQuery.add(" ")
             # SELECT all fields in the table / collection
             selectQuery.add(" * FROM ")
             selectQuery.add(collName)
@@ -461,22 +469,40 @@ proc computeDeleteByParamScript*(collName: string, whereParams: seq[WhereParam])
 
 ## selectByIdScript compose select SQL script by id(s) 
 ## 
-proc computeSelectByIdScript*(collName: string, docIds:seq[string]): string =
+proc computeSelectByIdScript*(collName: string; docIds:seq[string]; fields: seq[string] = @[] ): string =
         try:
             if docIds.len < 1:
                 raise newException(SelectQueryError, "record id(s) is(are) required for select/read operation")
-            var currentRecScript = "SELECT * FROM "
-            currentRecScript.add(collName)
-            currentRecScript.add(" WHERE id IN (")
-            var idCount =  0
-            for id in docIds:
-                inc idCount
-                currentRecScript.add("'")
-                currentRecScript.add(id)
-                currentRecScript.add("'")
-                if idCount < docIds.len:
-                    currentRecScript.add(", ")
-            currentRecScript.add(" )")
+            var currentRecScript = ""
+            if fields.len > 0:
+                # get record(s) based on projected/provided field names (seq[string])
+                for field in fields:
+                    currentRecScript.add ("SELECT ")
+                    currentRecScript.add(field)
+                    currentRecScript.add(" ")
+                    currentRecScript.add(" WHERE id IN (")
+                var idCount =  0
+                for id in docIds:
+                    inc idCount
+                    currentRecScript.add("'")
+                    currentRecScript.add(id)
+                    currentRecScript.add("'")
+                    if idCount < docIds.len:
+                       currentRecScript.add(", ")
+                currentRecScript.add(" )")
+            else:
+                currentRecScript = "SELECT * FROM "
+                currentRecScript.add(collName)
+                currentRecScript.add(" WHERE id IN (")
+                var idCount =  0
+                for id in docIds:
+                    inc idCount
+                    currentRecScript.add("'")
+                    currentRecScript.add(id)
+                    currentRecScript.add("'")
+                    if idCount < docIds.len:
+                        currentRecScript.add(", ")
+                currentRecScript.add(" )")
             return currentRecScript
         except:
             # raise exception or return empty select statement, for exception/error

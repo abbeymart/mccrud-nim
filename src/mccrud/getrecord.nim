@@ -21,54 +21,63 @@ proc newGetRecord*(appDb: Database;
                     docIds: seq[string] = @[]; 
                     options: Table[string, ValueType]): CrudParam =
     ## base / shared constructor
-    result = newCrud(appDb, collName, userInfo, whereParams = whereParams, options = options )
+    result = newCrud(appDb, collName, userInfo, whereParams = whereParams, docIds = docIds, options = options )
     
     ## specific/sub-set constructor variable
-    result.docIds = docIds
     result.currentRecords = @[]
-
     result.roleServices = @[]
     result.recExistMessage = "Save / update error or duplicate records exist: "
     result.unAuthMessage = "Action / task not authorised or permitted "
 
   
-proc getAllRecords*(crud: CrudParam): ResponseMessage =  
+proc getAllRecords*(crud: CrudParam; fields: seq[string] = @[]): ResponseMessage =  
     try:
-        echo "success"
-        # validate that checkAccess is true, otherwise send unauthorized response
-        if not crud.checkAccess:
+        # ensure that checkAccess is false, otherwise send unauthorized response
+        if crud.checkAccess:
             const okRes = OkayResponse(ok: false)
             return getResMessage("unAuthorized", ResponseMessage(value: %*(okRes), message: "Operation not authorized"))
 
-        # check query params, skip and limit(records to return maximum 100,000 or as set by service consumer)
+        # check query params, skip and limit records to return maximum 100,000 or as set by service consumer
         if crud.limit > 100000:
             crud.limit = 100000
 
         if crud.skip < 0:
             crud.skip = 0
         
-        # perform query for the collName and deliver string[][] result to the client/consumer of the CRUD service
-        # The user (client/consumer's) transform/map query result/value of getRecs to collName model definition
+        var getRecScript = ""
 
-        var getRecScript = "SELECT * FROM " & crud.collName & " "
+        if fields.len > 0:
+            # get record(s) based on projected/provided field names (seq[string])
+            for field in fields:
+                getRecScript.add ("SELECT ")
+                getRecScript.add(field)
+                getRecScript.add(" ")
 
-        getRecScript.add(" SKIP ")
-        getRecScript.add($crud.skip)
-        getRecScript.add(" LIMIT ")
-        getRecScript.add($crud.limit)
+            let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
 
-        let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
+            # return mapped records as json array-objects 
+            return getResMessage("success", ResponseMessage(value: %*(getRecs)))
+        else:
+            # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service
+            # The user (client/consumer's) transform/map query result/value of getRecs to collName model definition
+            getRecScript = "SELECT * FROM " & crud.collName & " "
+            getRecScript.add(" SKIP ")
+            getRecScript.add($crud.skip)
+            getRecScript.add(" LIMIT ")
+            getRecScript.add($crud.limit)
 
-        # return mapped records as json array-objects 
-        return getResMessage("success", ResponseMessage(value: %*(getRecs)))
+            let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
 
+            # return mapped records as json array-objects 
+            return getResMessage("success", ResponseMessage(value: %*(getRecs)))
     except:
         const okRes = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))
 
 proc getRecord*(crud: CrudParam; by: string;
                     docIds: seq[string] = @[];
-                    whereParams: seq[WhereParam] = @[]): ResponseMessage =  
+                    whereParams: seq[WhereParam] = @[];
+                    fields: seq[string] = @[]): ResponseMessage =  
     try:
         # update crud instance ref-variables
         if crud.docIds.len < 1 and docIds.len > 0:
@@ -105,7 +114,13 @@ proc getRecord*(crud: CrudParam; by: string;
 
             if taskValue and taskPermit.code == "success":
                 ## get current records
-                let getRecScript = computeSelectByIdScript(crud.collName, crud.docIds)
+                var getRecScript = computeSelectByIdScript(crud.collName, crud.docIds)
+                # append skip and limit params
+                getRecScript.add(" SKIP ")
+                getRecScript.add($crud.skip)
+                getRecScript.add(" LIMIT ")
+                getRecScript.add($crud.limit)
+
                 let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
                 # return mapped records as json array-objects 
                 return getResMessage("success", ResponseMessage(value: %*(getRecs)))
@@ -122,6 +137,7 @@ proc getRecord*(crud: CrudParam; by: string;
                 let whereParam = computeWhereQuery(crud.whereParams)
 
                 var getRecScript = selectQuery & " " & whereParam
+                # append skip and limit params
                 getRecScript.add(" SKIP ")
                 getRecScript.add($crud.skip)
                 getRecScript.add(" LIMIT ")

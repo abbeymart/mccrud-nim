@@ -52,7 +52,7 @@ proc newCrud*(appDb: Database;
             logCreate: bool = false;
             logUpdate: bool = false;
             logDelete: bool = false;
-            checkAccess: bool = false;
+            checkAccess: bool = true;
             transLog: LogParam = LogParam(auditDb: auditDb, auditColl: auditColl);
             options: Table[string, ValueType]): CrudParam =
     
