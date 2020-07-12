@@ -8,10 +8,8 @@
 #            CRUD Package - delete(remove) record(s)
 # 
 
-
 ## delete(remove)-record procedure is delete record(s) by role (access-control)
 ## 
-##
 import crud
 
 # constructor
