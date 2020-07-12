@@ -29,31 +29,27 @@ proc newDeleteRecord*(appDb: Database;
 ## 
 proc deleteRecordById(crud: CrudParam): ResponseMessage =
     try:
-        ## compute delete script from docIds
-        let deleteScripts: string = computeDeleteByIdScript(crud.collName, crud.docIds)
-        
-        ## perform delete action
         ## get current records
         let currentRecScript = computeSelectByIdScript(crud.collName, crud.docIds)
         let currentRecs =  crud.appDb.db.getAllRows(sql(currentRecScript))
 
         # exit / return if currentRecs[0].len < 1
-        if currentRecs[0].len < 1:
+        if currentRecs[0].len < 1 or currentRecs.len < crud.docIds.len:
             let okRes = OkayResponse(ok: false)
             return getResMessage("notFound", ResponseMessage(value: %*(okRes), message: "No record(s) found"))  
-
+        
+        ## compute delete script from docIds
+        let deleteScripts: string = computeDeleteByIdScript(crud.collName, crud.docIds)
+                
         # perform delete task, wrap in transaction
         crud.appDb.db.exec(sql"BEGIN")
         crud.appDb.db.exec(sql(deleteScripts))
         crud.appDb.db.exec(sql"COMMIT")
 
         # perform audit/trans-log action
-        let 
-            tabName = crud.collName
-            collValues = %*(CurrentRecord(currentRec: currentRecs))
-            userId = crud.userInfo.id
+        let collValues = %*(CurrentRecord(currentRec: currentRecs))
         if crud.logDelete:
-            discard crud.transLog.deleteLog(tabName, collValues, userId)
+            discard crud.transLog.deleteLog(crud.collName, collValues, crud.userInfo.id)
 
         # response
         return getResMessage("success", ResponseMessage(value: %*(crud.docIds), message: "Record(s) deleted(removed) successfully"))
@@ -65,10 +61,6 @@ proc deleteRecordById(crud: CrudParam): ResponseMessage =
 ## 
 proc deleteRecordByParam(crud: CrudParam): ResponseMessage =
     try:
-        ## compute delete script from whereParams
-        let deleteScripts: string = computeDeleteByParamScript(crud.collName, crud.whereParams)
-        
-        ## perform delete action
         ## get current records
         let selectQuery = computeSelectQuery(crud.collName, crud.queryParam)
         let whereParam = computeWhereQuery(crud.whereParams)
@@ -81,19 +73,19 @@ proc deleteRecordByParam(crud: CrudParam): ResponseMessage =
         if currentRecs[0].len < 1:
             let okRes = OkayResponse(ok: false)
             return getResMessage("notFound", ResponseMessage(value: %*(okRes), message: "No record(s) found"))  
-
+        
+        ## compute delete script from whereParams
+        let deleteScripts: string = computeDeleteByParamScript(crud.collName, crud.whereParams)
+            
         # wrap in transaction
         crud.appDb.db.exec(sql"BEGIN")
         crud.appDb.db.exec(sql(deleteScripts))
         crud.appDb.db.exec(sql"COMMIT")
 
         # perform audit/trans-log action
-        let 
-            tabName = crud.collName
-            collValues = %*(CurrentRecord(currentRec: currentRecs))
-            userId = crud.userInfo.id
+        let collValues = %*(CurrentRecord(currentRec: currentRecs))
         if crud.logDelete:
-            discard crud.transLog.deleteLog(tabName, collValues, userId)
+            discard crud.transLog.deleteLog(crud.collName, collValues, crud.userInfo.id)
 
         # response
         return getResMessage("success", ResponseMessage(value: %*(crud.docIds), message: "Record(s) deleted(removed) successfully"))
