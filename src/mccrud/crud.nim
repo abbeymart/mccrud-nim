@@ -40,6 +40,7 @@ proc newCrud*(appDb: Database;
             queryTop: QueryTop = QueryTop();
             skip: Positive = 0;
             limit: Positive = 100000;
+            defaultLimit: Positive = 100000;
             auditColl: string = "audits";
             accessColl: string = "accesskeys";
             serviceColl: string = "services";
@@ -83,6 +84,7 @@ proc newCrud*(appDb: Database;
     result.caseParams = caseParams
     result.skip = skip
     result.limit = limit
+    result.defaultLimit = defaultLimit
 
     # Shared
     result.auditColl = auditColl
@@ -107,7 +109,7 @@ proc getRoleServices*(
                     accessDb: Database;
                     userGroup: string;
                     serviceIds: seq[string];   # for any tasks (record, coll/table, function, package, solution...)
-                    roleColl: string = "roles"
+                    roleColl: string = "roles";
                     ): seq[RoleService] =
     var roleServices: seq[RoleService] = @[]
     try:
@@ -129,7 +131,7 @@ proc getRoleServices*(
                     canCreate: strToBool(row[3]),
                     canRead: strToBool(row[4]),
                     canUpdate: strToBool(row[5]),
-                    canDelete: strToBool(row[6])
+                    canDelete: strToBool(row[6]),
                 ))
         return roleServices
     except:
@@ -177,10 +179,12 @@ proc checkAccess*(
                                 " WHERE name = " & collName )
 
         let collInfo = accessDb.db.getRow(collInfoQuery)
+        var collId = ""
 
         # if permitted, include collId and docIds in serviceIds
         var serviceIds = docIds
         if collInfo.len() > 0:
+            collId = collInfo[0]
             serviceIds.add(collInfo[0])
 
         # Get role assignment (i.e. service items permitted for the user-group)
@@ -197,7 +201,8 @@ proc checkAccess*(
                                     userRoles: parseJson(currentUser[2]),
                                     isActive: strToBool(currentUser[3]),
                                     isAdmin: parseJson(currentUser[4]){"is_dmin"}.getBool(false),
-                                    roleServices: roleServices
+                                    roleServices: roleServices,
+                                    collId: collId
                                     )
 
         return getResMessage("success", ResponseMessage(

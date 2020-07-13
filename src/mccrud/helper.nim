@@ -102,11 +102,11 @@ proc computeSelectByIdScript*(collName: string; docIds:seq[string]; fields: seq[
 ## computeSelectQuery compose SELECT query from the queryParam
 ## queryType => simple, join, cases, subquery, combined etc.
 proc computeSelectQuery*(collName: string;
-                        queryParam: QueryParam;
+                        queryParam: QueryParam = QueryParam();
                         queryType: string = "simple";
                         fields: seq[string] = @[]): string =
-    if collName == "" or queryParam == QueryParam():
-        raise newException(SelectQueryError, "Table/collection name and query-param are required for the select/read operation")                    
+    if collName == "":
+        raise newException(SelectQueryError, "Table/collection name is required for the select/read operation")                    
     
     try:
         # script, sorting, valid group item count variables
@@ -115,7 +115,7 @@ proc computeSelectQuery*(collName: string;
         var fieldLen = 0                  # number of fields in the SELECT statement/query         
         var unspecifiedGroupItemCount = 0 # variable to determine unspecified fieldName(s) to check if query/script should be returned
 
-        if queryParam.fieldItems.len() < 1:
+        if queryParam == QueryParam() or queryParam.fieldItems.len() < 1:
             if fields.len > 0:
                 var fieldCount = 0
                 fieldLen = fields.len

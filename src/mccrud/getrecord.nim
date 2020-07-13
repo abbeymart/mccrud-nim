@@ -17,6 +17,7 @@ import crud
 proc newGetRecord*(appDb: Database;
                     collName: string;
                     userInfo: UserParam;
+                    checkAccess: bool = true;
                     whereParams: seq[WhereParam] = @[];
                     docIds: seq[string] = @[];
                     fields: seq[string] = @[]; 
@@ -32,38 +33,23 @@ proc getAllRecords*(crud: CrudParam; fields: seq[string] = @[]): ResponseMessage
             return getResMessage("unAuthorized", ResponseMessage(value: %*(okRes), message: "Operation not authorized"))
 
         # check query params, skip and limit records to return maximum 100,000 or as set by service consumer
-        if crud.limit > 100000:
-            crud.limit = 100000
+        if crud.limit > crud.defaultLimit:
+            crud.limit = crud.defaultLimit
 
         if crud.skip < 0:
             crud.skip = 0
         
-        var getRecScript = ""
+        var getRecScript = computeSelectQuery(crud.collName, fields = fields)
+        getRecScript.add(" SKIP ")
+        getRecScript.add($crud.skip)
+        getRecScript.add(" LIMIT ")
+        getRecScript.add($crud.limit)
 
-        if fields.len > 0:
-            # get record(s) based on projected/provided field names (seq[string])
-            for field in fields:
-                getRecScript.add ("SELECT ")
-                getRecScript.add(field)
-                getRecScript.add(" ")
+        # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service, as json array
+        # The client/consumer transform/map query result/value of getRecs to collName projected fields or model definition   
+        let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
 
-            let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
-
-            # return mapped records as json array-objects 
-            return getResMessage("success", ResponseMessage(value: %*(getRecs)))
-        else:
-            # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service
-            # The user (client/consumer's) transform/map query result/value of getRecs to collName model definition
-            getRecScript = "SELECT * FROM " & crud.collName & " "
-            getRecScript.add(" SKIP ")
-            getRecScript.add($crud.skip)
-            getRecScript.add(" LIMIT ")
-            getRecScript.add($crud.limit)
-
-            let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
-
-            # return mapped records as json array-objects 
-            return getResMessage("success", ResponseMessage(value: %*(getRecs)))
+        return getResMessage("success", ResponseMessage(value: %*(getRecs)))
     except:
         const okRes = OkayResponse(ok: false)
         return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))
@@ -83,12 +69,12 @@ proc getRecord*(crud: CrudParam; by: string;
         if by == "id" and crud.docIds.len < 1:
             # return error message
             return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by id (docIds[]) is required"))
-        elif whereParams.len < 1:
+        elif (by == "params" or by == "query") and whereParams.len < 1:
             return getResMessage("paramsError", ResponseMessage(value: nil, message: "Delete condition by params (whereParams) is required"))
         
         # check query params, skip and limit(records to return maximum 100,000 or as set by service consumer)
-        if crud.limit > 100000:
-            crud.limit = 100000
+        if crud.limit > crud.defaultLimit:
+            crud.limit = crud.defaultLimit
 
         if crud.skip < 0:
             crud.skip = 0
@@ -98,7 +84,6 @@ proc getRecord*(crud: CrudParam; by: string;
             const okRes = OkayResponse(ok: false)
             return getResMessage("unAuthorized", ResponseMessage(value: %*(okRes), message: "Operation not authorized"))
         
-    
         # Perform query by: id, params, open (all permitted record - by admin, owner or role assignment)
         case by
         of "id":
@@ -108,15 +93,17 @@ proc getRecord*(crud: CrudParam; by: string;
 
             if taskValue and taskPermit.code == "success":
                 ## get current records
-                var getRecScript = computeSelectByIdScript(crud.collName, crud.docIds)
+                var getRecScript = computeSelectByIdScript(crud.collName, crud.docIds, fields = fields)
                 # append skip and limit params
                 getRecScript.add(" SKIP ")
                 getRecScript.add($crud.skip)
                 getRecScript.add(" LIMIT ")
                 getRecScript.add($crud.limit)
 
+                # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service, as json array
+                # The client/consumer transform/map query result/value of getRecs to collName projected fields or model definition   
                 let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
-                # return mapped records as json array-objects 
+                
                 return getResMessage("success", ResponseMessage(value: %*(getRecs)))
             else:
                 # return task permission reponse
@@ -138,13 +125,31 @@ proc getRecord*(crud: CrudParam; by: string;
                 getRecScript.add($crud.limit)
 
                 let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
-                # return mapped records as json array-objects 
+                # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service, as json array
+                # The client/consumer transform/map query result/value of getRecs to collName projected fields or model definition    
                 return getResMessage("success", ResponseMessage(value: %*(getRecs)))
             else:
                 # return task permission reponse
                 return taskPermit
         else:
             # get all-recs (upto max-limit) by admin / role / owner
+            # compose docIds for getRecords by params
+            if by == "params" or by == "query":
+                let selectQuery = "SELECT id FROM " & crud.collName
+                let whereParam = computeWhereQuery(crud.whereParams)
+
+                var getRecScript = selectQuery & " " & whereParam
+                # append skip and limit params
+                getRecScript.add(" SKIP ")
+                getRecScript.add($crud.skip)
+                getRecScript.add(" LIMIT ")
+                getRecScript.add($crud.limit)
+
+                let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
+                crud.docIds = @[]
+                for rec in getRecs:
+                    crud.docIds.add(rec[0])
+
             # check role-based access
             var accessRes = checkAccess(accessDb = crud.accessDb, collName = crud.collName,
                                     docIds = crud.docIds, userInfo = crud.userInfo )
@@ -155,6 +160,7 @@ proc getRecord*(crud: CrudParam; by: string;
 
             if accessRes.code == "success":
                 # get access info value (json) => toObject
+                # TODO: check if collName (id) is included in checkAccess-response
                 let accessInfo = to(accessRes.value, CheckAccess)
                 isAdmin = accessInfo.isAdmin
                 userId = accessInfo.userId
@@ -176,7 +182,8 @@ proc getRecord*(crud: CrudParam; by: string;
 
             let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
 
-            # return mapped records as json array-objects 
+            # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service, as json array
+            # The client/consumer transform/map query result/value of getRecs to collName projected fields or model definition    
             return getResMessage("success", ResponseMessage(value: %*(getRecs)))
     except:
         const okRes = OkayResponse(ok: false)

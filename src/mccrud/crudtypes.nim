@@ -178,6 +178,7 @@ type
         canCreate*: bool
         canUpdate*: bool
         canDelete*: bool
+        collAccessPermitted: bool
     
     CheckAccess* = object
         userId*: string
@@ -186,6 +187,7 @@ type
         isActive*: bool
         isAdmin*: bool
         roleServices*: seq[RoleService]
+        collId*: string
 
     OkayResponse* = object
         ok*: bool
@@ -260,6 +262,7 @@ type
         caseParams*: seq[CaseQueryParam] 
         skip*: Natural
         limit*: Positive
+        defaultLimit*: Positive
         ## Database, audit-log and access parameters 
         ## 
         auditColl*: string
