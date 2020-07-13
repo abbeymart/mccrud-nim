@@ -17,9 +17,10 @@ import crud
 proc newGetRecord*(appDb: Database;
                     collName: string;
                     userInfo: UserParam;
-                    whereParams: seq[WhereParam];
-                    docIds: seq[string] = @[]; 
-                    options: Table[string, ValueType]): CrudParam =
+                    whereParams: seq[WhereParam] = @[];
+                    docIds: seq[string] = @[];
+                    fields: seq[string] = @[]; 
+                    options: Table[string, ValueType] = []): CrudParam =
     ## base / shared constructor
     result = newCrud(appDb, collName, userInfo, whereParams = whereParams, docIds = docIds, options = options )
   

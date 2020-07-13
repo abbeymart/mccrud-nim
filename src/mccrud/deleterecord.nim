@@ -19,7 +19,7 @@ proc newDeleteRecord*(appDb: Database;
                     userInfo: UserParam;
                     whereParams: seq[QueryParam];
                     docIds: seq[string] = @[]; 
-                    options: Table[string, ValueType]): CrudParam =
+                    options: Table[string, ValueType] = []): CrudParam =
     ## base / shared constructor
     result = newCrud(appDb, collName, userInfo, whereParams = whereParams, docIds = docIds, options = options )
 
