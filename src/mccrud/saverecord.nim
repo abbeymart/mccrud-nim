@@ -19,7 +19,7 @@ proc newSaveRecord*(appDb: Database;
                     collName: string;
                     userInfo: UserParam;
                     actionParams: seq[QueryParam];
-                    docIds: seq[string] = @[]; 
+                    docIds: seq[string] = @[];
                     options: Table[string, ValueType] = []): CrudParam =
     ## base / shared constructor
     result = newCrud(appDb, collName, userInfo, actionParams = actionParams, docIds = docIds, options = options )
@@ -44,8 +44,7 @@ proc createRecord(crud: CrudParam; rec: seq[QueryParam]): ResponseMessage =
         if crud.logCreate:
             discard crud.transLog.createLog(crud.collName, collValues, crud.userInfo.id)
         
-        # response
-        
+        # response 
         return getResMessage("success", ResponseMessage(value: %*(TaskRecord(recCount: recCnt)), message: "Record(s) created successfully"))
     except:
         let okRes = OkayResponse(ok: false)
