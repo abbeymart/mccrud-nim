@@ -10,7 +10,7 @@
 
 ## get-record procedure is for fetching records by role (access-control)
 ## 
-import crud
+import crud, sequtils
 
 # constructor
 ## get-record operations constructor
@@ -132,7 +132,8 @@ proc getRecord*(crud: CrudParam; by: string;
                 # return task permission reponse
                 return taskPermit
         else:
-            # get all-recs (upto max-limit) by admin / role / owner
+            # get all-recs (upto max-limit) by admin or owner
+            
             # compose docIds for getRecords by params
             if by == "params" or by == "query":
                 let selectQuery = "SELECT id FROM " & crud.collName
@@ -160,25 +161,50 @@ proc getRecord*(crud: CrudParam; by: string;
 
             if accessRes.code == "success":
                 # get access info value (json) => toObject
-                # TODO: check if collName (id) is included in checkAccess-response
                 let accessInfo = to(accessRes.value, CheckAccess)
                 isAdmin = accessInfo.isAdmin
                 userId = accessInfo.userId
+                # check if collName (id) is included in checkAccess-response
+                proc collAccess(it: RoleService, collId: string): bool =
+                    it.serviceId == collId
+                collAccessPermitted = accessInfo.roleServices.anyIt(collAccess(it, accessInfo.collId))
     
             # if current user is admin or read-access permitted on collName, perform task, get all records
             if isAdmin or collAccessPermitted:
-                return crud.getAllRecords()
+                return crud.getAllRecords(fields)
             
             # get records owned by the current-user or requestor
-            var getRecScript = "SELECT * FROM " & crud.collName & " "
-
-            getRecScript.add("WHERE created_by = ")
-            getRecScript.add(userId)
-            getRecScript.add(" ")
-            getRecScript.add(" SKIP ")
-            getRecScript.add($crud.skip)
-            getRecScript.add(" LIMIT ")
-            getRecScript.add($crud.limit)
+            var getRecScript = ""
+            if fields.len > 0:
+                var 
+                    fieldCount = 0
+                    fieldLen = fields.len
+                # get record(s) based on projected/provided field names (seq[string])
+                getRecScript.add ("SELECT ")
+                for field in fields:
+                    inc fieldCount
+                    getRecScript.add(field)
+                    if fieldLen > 1 and fieldCount < fieldLen:
+                        getRecScript.add(", ")
+                    else:
+                        getRecScript.add(" ")
+                getRecScript.add("WHERE created_by = ")
+                getRecScript.add(userId)
+                getRecScript.add(" ")
+                getRecScript.add(" SKIP ")
+                getRecScript.add($crud.skip)
+                getRecScript.add(" LIMIT ")
+                getRecScript.add($crud.limit) 
+            else:
+                # SELECT all fields in the table / collection
+                getRecScript = "SELECT * FROM " & crud.collName & " "
+                getRecScript.add("WHERE created_by = ")
+                getRecScript.add(userId)
+                getRecScript.add(" ")
+                getRecScript.add(" SKIP ")
+                getRecScript.add($crud.skip)
+                getRecScript.add(" LIMIT ")
+                getRecScript.add($crud.limit)
 
             let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
 
