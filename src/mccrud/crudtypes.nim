@@ -28,9 +28,9 @@ type
     ]# 
     UserParam* = object
         id*: string         # stored as uuid in the DB
-        firstName: string
-        lastName: string
-        lang: string
+        firstName*: string
+        lastName*: string
+        lang*: string
         loginName*: string
         email*: string
         token*: string
