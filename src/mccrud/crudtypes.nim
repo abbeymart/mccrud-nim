@@ -17,15 +17,6 @@ type
 
     ## User/client information to be provided after successful login
     ## 
-    #[
-        email: "abbeya1@yahoo.com"
-        firstName: "Abi"
-        isActive: true
-        lang: "en-US"
-        lastName: "Akindele"
-        id: "5b0e139b3151184425aae01c" (_id for mongodb)
-        token: "aaaaaaaaaaaaaaa455YFFS99902zzz..."
-    ]# 
     UserParam* = object
         id*: string         # stored as uuid in the DB
         firstName*: string
@@ -35,7 +26,6 @@ type
         email*: string
         token*: string
 
-    
     # fieldValue(s) are string type for params parsing convenience,
     # fieldValue(s) will be cast by supported fieldType(s), else will through ValueError exception
     # fieldOp: GT, EQ, GTE, LT, LTE, NEQ(<>), BETWEEN, NOTBETWEEN, IN, NOTIN, LIKE, IS, ISNULL, NOTNULL etc., with matching params (fields/values)

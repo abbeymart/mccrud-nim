@@ -1,25 +1,10 @@
 import unittest
+import mccrud
 import mctranslog
 import mcdb
 import json
 
 # test data sets
-var defaultSecureOption = DbSecureType(secureAccess: false)
-
-var defaultDbOptions = DbOptionType(fileName: "testdb.db", hostName: "localhost",
-                                hostUrl: "localhost:5432",
-                                userName: "postgres", password: "ab12trust",
-                                dbName: "mccentral", port: 5432,
-                                dbType: "postgres", poolSize: 20,
-                                secureOption: defaultSecureOption )
-
-# db connection / instance
-var dbConnect = newDatabase(defaultDbOptions)
-
-var logInstanceResult = LogParam(auditDb: dbConnect, auditColl: "audits")
-
-# audit-log instance
-var mcLog = newLog(dbConnect, "audits")
 
 # Working/Test data
 type
@@ -54,7 +39,7 @@ var
     loginParams = collParams
     logoutParams = collParams
 
-suite "audit/transactions log testing":
+suite "create new records testing":
     # "setup: run once before the tests"
 
     test "should connect and return an instance object":
@@ -66,28 +51,6 @@ suite "audit/transactions log testing":
         echo "create-log-response: ", res
         check res.code == "success"
         check res.value == collParams
-    
-    test "should store update-transaction log and return success":
-        let res = mcLog.updateLog(collName, collParams, collNewParams, userId)
-        echo "update-log-response: ", res
-        check res.code == "success"
-        check res.value == collNewParams
-
-    test "should store read-transaction log and return success":
-        let res = mcLog.readLog(collName, collParams, userId)
-        check res.code == "success"
-        check res.value == collParams
-
-    test "should store delete-transaction log and return success":
-        let res = mcLog.deleteLog(collName, collParams, userId)
-        check res.code == "success"
-        check res.value == collParams
-
-    test "should store login-transaction log and return success":
-        collName = "users"
-        let res = mcLog.loginLog(collName, loginParams, userId)
-        check res.code == "success"
-        check res.value == nil
 
     test "should store logout-transaction log and return success":
         collName = "users"
