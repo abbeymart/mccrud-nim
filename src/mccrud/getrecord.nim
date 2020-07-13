@@ -45,8 +45,8 @@ proc getAllRecords*(crud: CrudParam; fields: seq[string] = @[]): ResponseMessage
         getRecScript.add(" LIMIT ")
         getRecScript.add($crud.limit)
 
-        # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service, as json array
-        # The client/consumer transform/map query result/value of getRecs to collName projected fields or model definition   
+        # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service, as json array  
+        # TODO: transform getRecs into JSON based on projected fiedls or data model structure
         let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
 
         return getResMessage("success", ResponseMessage(value: %*(getRecs)))
@@ -55,9 +55,9 @@ proc getAllRecords*(crud: CrudParam; fields: seq[string] = @[]): ResponseMessage
         return getResMessage("saveError", ResponseMessage(value: %*(okRes), message: getCurrentExceptionMsg()))
 
 proc getRecord*(crud: CrudParam; by: string;
-                    docIds: seq[string] = @[];
-                    whereParams: seq[WhereParam] = @[];
-                    fields: seq[string] = @[]): ResponseMessage =  
+                docIds: seq[string] = @[];
+                whereParams: seq[WhereParam] = @[];
+                fields: seq[string] = @[]): ResponseMessage =  
     try:
         # update crud instance ref-variables
         if crud.docIds.len < 1 and docIds.len > 0:
@@ -101,7 +101,7 @@ proc getRecord*(crud: CrudParam; by: string;
                 getRecScript.add($crud.limit)
 
                 # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service, as json array
-                # The client/consumer transform/map query result/value of getRecs to collName projected fields or model definition   
+                # TODO: transform currentRecs into JSON based on projected fiedls or data model structure
                 let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
                 
                 return getResMessage("success", ResponseMessage(value: %*(getRecs)))
@@ -126,7 +126,7 @@ proc getRecord*(crud: CrudParam; by: string;
 
                 let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
                 # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service, as json array
-                # The client/consumer transform/map query result/value of getRecs to collName projected fields or model definition    
+                # TODO: transform currentRecs into JSON based on projected fiedls or data model structure
                 return getResMessage("success", ResponseMessage(value: %*(getRecs)))
             else:
                 # return task permission reponse
@@ -147,6 +147,7 @@ proc getRecord*(crud: CrudParam; by: string;
                 getRecScript.add($crud.limit)
 
                 let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
+                # reset crud/instance docIds to refresh values
                 crud.docIds = @[]
                 for rec in getRecs:
                     crud.docIds.add(rec[0])
@@ -164,14 +165,14 @@ proc getRecord*(crud: CrudParam; by: string;
                 let accessInfo = to(accessRes.value, CheckAccess)
                 isAdmin = accessInfo.isAdmin
                 userId = accessInfo.userId
-                # check if collName (id) is included in checkAccess-response
+                # check if collId is included in the checkAccess-response
                 proc collAccess(it: RoleService, collId: string): bool =
                     it.serviceId == collId
                 collAccessPermitted = accessInfo.roleServices.anyIt(collAccess(it, accessInfo.collId))
     
-            # if current user is admin or read-access permitted on collName, perform task, get all records
+            # if current user is admin or read-access permitted on collName, get all records
             if isAdmin or collAccessPermitted:
-                return crud.getAllRecords(fields)
+                return crud.getAllRecords(fields = fields)
             
             # get records owned by the current-user or requestor
             var getRecScript = ""
@@ -209,7 +210,7 @@ proc getRecord*(crud: CrudParam; by: string;
             let getRecs =  crud.appDb.db.getAllRows(sql(getRecScript))
 
             # perform query for the collName and deliver seq[Row] result to the client/consumer of the CRUD service, as json array
-            # The client/consumer transform/map query result/value of getRecs to collName projected fields or model definition    
+            # TODO: transform currentRecs into JSON based on projected fiedls or data model structure
             return getResMessage("success", ResponseMessage(value: %*(getRecs)))
     except:
         const okRes = OkayResponse(ok: false)

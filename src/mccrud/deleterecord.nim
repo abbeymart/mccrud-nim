@@ -45,6 +45,7 @@ proc deleteRecordById(crud: CrudParam): ResponseMessage =
         crud.appDb.db.exec(sql"COMMIT")
 
         # perform audit/trans-log action
+        # TODO: transform currentRecs into JSON based on projected fiedls or data model structure
         let collValues = %*(CurrentRecord(currentRec: currentRecs))
         if crud.logDelete:
             discard crud.transLog.deleteLog(crud.collName, collValues, crud.userInfo.id)
@@ -81,6 +82,7 @@ proc deleteRecordByParam(crud: CrudParam): ResponseMessage =
         crud.appDb.db.exec(sql"COMMIT")
 
         # perform audit/trans-log action
+        # TODO: transform currentRecs into JSON based on projected fiedls or data model structure
         let collValues = %*(CurrentRecord(currentRec: currentRecs))
         if crud.logDelete:
             discard crud.transLog.deleteLog(crud.collName, collValues, crud.userInfo.id)
