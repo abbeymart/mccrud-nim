@@ -447,6 +447,9 @@ proc computeCreateScript*(collName: string, actionParams: seq[QueryParam]): seq[
     if collName == "" or actionParams.len < 1 :
         raise newException(CreateQueryError, "Table/collection name and action-params are required for the create operation")
     
+    # lower-case the collName
+    # var colName = collName.toLower()
+
     # computed create script from queryParams    
     try:
         var createScripts: seq[string] = @[]

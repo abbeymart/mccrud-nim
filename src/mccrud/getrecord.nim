@@ -189,7 +189,7 @@ proc getRecord*(crud: CrudParam; by: string;
                         getRecScript.add(", ")
                     else:
                         getRecScript.add(" ")
-                getRecScript.add("WHERE created_by = ")
+                getRecScript.add("WHERE createdby = ")
                 getRecScript.add(userId)
                 getRecScript.add(" ")
                 getRecScript.add(" SKIP ")
@@ -199,7 +199,7 @@ proc getRecord*(crud: CrudParam; by: string;
             else:
                 # SELECT all fields in the table / collection
                 getRecScript = "SELECT * FROM " & crud.collName & " "
-                getRecScript.add("WHERE created_by = ")
+                getRecScript.add("WHERE createdby = ")
                 getRecScript.add(userId)
                 getRecScript.add(" ")
                 getRecScript.add(" SKIP ")

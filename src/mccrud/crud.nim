@@ -253,13 +253,13 @@ proc taskPermission*(crud: CrudParam; taskType: string): ResponseMessage =
             # ownership (i.e. created by userId) for all currentRecords (update/delete...)
             let accessUserId = accessInfo.userId
             if crud.docIds.len() > 0 and accessUserId != "":
-                var selectQuery = "SELECT id, created_by, updated_by, created_at, updated_at FROM "
+                var selectQuery = "SELECT id, createdby, updatedby, createdat, updatedat FROM "
                 selectQuery.add(crud.collName)
                 selectQuery.add(" ")
                 var whereQuery= " WHERE id IN ("
                 whereQuery.add(crud.docIds.join(", "))
                 whereQuery.add(" AND ")
-                whereQuery.add("created_by = ")
+                whereQuery.add("createdby = ")
                 whereQuery.add(accessUserId)
                 whereQuery.add(" ")    
 
