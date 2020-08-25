@@ -2,7 +2,7 @@
 ## 
 ## 
 import json, tables
-import ../ormtypes
+import ../crudtypes
 
 # Convert jsonToObj to QuerySaveParamType | QueryReadParamType | QueryDeleteParamType
 
@@ -10,93 +10,21 @@ var
     saveFields: seq[SaveFieldType] = @[]
     whereParam: seq[WhereParamType] = @[]
 
-proc jsonToCrudSaveRecord(model: ModelType, jNode: JsonNode): SaveParamType =
-    # TODO: compose CRUD meta-data based on JSON data request and defined model
-    for fieldName, fieldDesc in model.recordDesc.pairs():
-        # errorChecking
-        var errorMessage = ""
-        var 
-            validField: bool = false
-            defaultValue = ""
-            validaPattern = false
+type
+    UserProfileType* = object
+        id: string
+        username: string
+        email: string
+        firstName: string
+        lastName: string
+        phone: string
 
-        # check the key type from userModel
-        var fieldType = fieldDesc.fieldType
-        var fieldValue: string      # cast to fieldType
-        
-        # check the jNode for key info, validate and set value or capture exception/value-error
-        case fieldType
-        of DataTypes.STRING:
-            fieldValue = jNode{fieldName}.getStr("")
-            # TODO: validate fieldValue: null / defaultValue, validate... 
-            # validateProc
-            if not fieldDesc.validate():
-                validField = false
-            # null value check:
-            if fieldDesc.notNull and fieldValue == "" and fieldDesc.defaultValue() == "":
-                validField = false
-                errorMessage.add(fieldName)
-                errorMessage.add(":")
-                errorMessage.add("Field value cannot be null or empty")
-            elif fieldDesc.notNull and fieldValue == "" and fieldDesc.defaultValue() != "":
-                fieldValue = fieldDesc.defaultValue()
-                validField = true
-            elif fieldDesc.notNull and fieldValue == "":
-                validField = false
-            else:
-                validField = true
-            
-            if validField and errorMessage == "":
-                saveFields.add(
-                SaveFieldType(
-                fieldName: fieldName,
-                fieldValue: fieldValue,
-                fieldType: DataTypes.STRING)    
-                )
-        
-        of DataTypes.BOOL, DataTypes.BOOLEAN:
-            let jValue = jNode{fieldName}.getBool(false)
-            if jValue:
-                fieldValue = "true"
-            else:
-                fieldValue = "false"
-            # TODO: validate fieldValue: null / defaultValue, validate... 
-            # validateProc
-            if not fieldDesc.validate():
-                validField = false
-            # null value check:
-            if fieldDesc.notNull and fieldValue == "" and fieldDesc.defaultValue() == "":
-                validField = false
-                errorMessage.add(fieldName)
-                errorMessage.add(":")
-                errorMessage.add("Field value cannot be null or empty")
-            elif fieldDesc.notNull and fieldValue == "" and fieldDesc.defaultValue() != "":
-                fieldValue = fieldDesc.defaultValue()
-                validField = true
-            elif fieldDesc.notNull and fieldValue == "":
-                validField = false
-            else:
-                validField = true
-            
-            if validField and errorMessage == "":
-                saveFields.add(
-                SaveFieldType(
-                fieldName: fieldName,
-                fieldValue: fieldValue,
-                fieldType: DataTypes.STRING)    
-                )
-        
-        of DataTypes.INT:
-            let jValue = jNode{fieldName}.getInt(0)
-        else:
-            echo "perform all other cases or return value-error/unsupported-type exception"
-        # TODO: add other cases for all DataTypes
+# convert JSON inputs to typed model definition
 
-    
-    # check errorMessage
-
-    result = SaveParamType(
-        tableName: "users",
-        fields: saveFields,
-        where: whereParam,
-        )
+proc jsonToCrudSaveRec*(model: auto, jNode: JsonNode): UserProfileType =
+    # TODO: convert jNode to model-definition
+    echo "testing"
+    try:
+        result = to(jNode, UserProfileType)
+    except:
+        raise newException(ValueError, getCurrentExceptionMsg())

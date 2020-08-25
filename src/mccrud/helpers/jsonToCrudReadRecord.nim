@@ -2,7 +2,7 @@
 ## 
 ## 
 import json, tables
-import ../ormtypes
+import ../crudtypes
 
 # Convert jsonToObj to QuerySaveParamType | QueryReadParamType | QueryDeleteParamType
 

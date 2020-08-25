@@ -13,11 +13,6 @@ import mcdb, mctranslog
 
 # Define crud types
 
-type
-    BaseString = string
-    BaseText = string
-    BaseVarChar = string
-
 type 
     DataTypes* = enum
         STRING,
@@ -566,8 +561,8 @@ type
         group*: seq[GroupType] ## @[{fieldName: ""location", fieldOrder: 1}]
         having*: seq[HavingType]
         caseQuery*: seq[CaseQueryType] 
-        skip*: int
-        limit*: int
+        skip*: Natural
+        limit*: Positive
         defaultLimit*: int
         ## Database, audit-log and access parameters 
         ## 
@@ -589,7 +584,10 @@ type
         transLog*: LogParam
         isRecExist*: bool
         isAuthorized*: bool
+        createRecords*: seq[SaveParamType]
+        updateRecords*: seq[SaveParamType]
         currentRecords*: seq[Row]
         roleServices*: seq[RoleServiceType]
         recExistMessage*: string
         unAuthMessage*: string
+        cacheExpire*: Positive
