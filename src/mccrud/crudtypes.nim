@@ -16,8 +16,8 @@ import mcdb, mctranslog
 type 
     DataTypes* = enum
         STRING,
-        TEXT,
         VARCHAR,
+        TEXT,
         UUID,
         NUMBER,
         POSITIVE,
@@ -32,7 +32,7 @@ type
         DATETIME,
         TIMESTAMP,
         TIMESTAMPZ,
-        TIME,
+        # TIME,
         OBJECT,     ## key-value pairs
         ENUM,       ## Enumerations
         SET,        ## Unique values set

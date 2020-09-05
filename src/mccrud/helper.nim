@@ -210,7 +210,7 @@ proc computeSelectQuery*(collName: string;
 
 ## computeWhereQuery compose WHERE query from the whereParams
 ## 
-proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
+proc computeWhereQuery*(whereParams: seq[WhereParamType]): string =
     if whereParams.len < 1 :
                 raise newException(WhereQueryError, "Where-params is required for the where condition(s)")
     
@@ -443,7 +443,7 @@ proc computeWhereQuery*(whereParams: seq[WhereParam]): string =
 
 ## createScript compose insert SQL script
 ## 
-proc computeCreateScript*(collName: string, actionParams: seq[QueryParam]): seq[string] = 
+proc computeCreateScript*(collName: string, actionParams: seq[QueryParamType]): seq[string] = 
     if collName == "" or actionParams.len < 1 :
         raise newException(CreateQueryError, "Table/collection name and action-params are required for the create operation")
     
@@ -507,7 +507,7 @@ proc computeCreateScript*(collName: string, actionParams: seq[QueryParam]): seq[
 
 ## updateScript compose update SQL script
 ## 
-proc computeUpdateScript*(collName: string, actionParams: seq[QueryParam], docIds: seq[string]): seq[string] =
+proc computeUpdateScript*(collName: string, actionParams: seq[QueryParamType], docIds: seq[string]): seq[string] =
     if docIds.len < 1 or collName == "" or actionParams.len < 1 :
         raise newException(UpdateQueryError, "Table/collection name, doc-ids and action-params are required for the update operation")
     
@@ -584,7 +584,7 @@ proc computeDeleteByIdScript*(collName: string, docIds:seq[string]): string =
 
 ## deleteByParamScript compose delete SQL script by params
 ## 
-proc computeDeleteByParamScript*(collName: string, whereParams: seq[WhereParam]): string =
+proc computeDeleteByParamScript*(collName: string, whereParams: seq[WhereParamType]): string =
     if whereParams.len < 1 or collName == "":
         raise newException(DeleteQueryError, "Table/collection name and where-params are required for the delete operation")
     try:
