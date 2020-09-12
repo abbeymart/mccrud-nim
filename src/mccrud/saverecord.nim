@@ -20,7 +20,7 @@ proc newSaveRecord*(appDb: Database;
                     userInfo: UserParamType;
                     actionParams: seq[SaveParamType];
                     docIds: seq[string] = @[];
-                    options: Table[string, DataTypes]): CrudParamType =
+                    options: Table[string, ValueType]): CrudParamType =
     ## base / shared constructor
     result = newCrud(appDb, tableName, userInfo, actionParams = actionParams, docIds = docIds, options = options )
 

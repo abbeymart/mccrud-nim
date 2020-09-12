@@ -30,9 +30,9 @@ type
         BIGFLOAT,
         DATE,
         DATETIME,
+        TIME,
         TIMESTAMP,
         TIMESTAMPZ,
-        # TIME,
         OBJECT,     ## key-value pairs
         ENUM,       ## Enumerations
         SET,        ## Unique values set
@@ -135,7 +135,7 @@ type
     CreatedAtType* = DateTime
     UpdatedAtType* = DateTime
 
-    ValueType* = int | string | float | bool | Positive | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database | typed
+    ValueType* = int | string | float | bool | Positive | Natural | JsonNode | BiggestInt | BiggestFloat | Table | seq | Database | typed
  
     ## User/client information to be provided after successful login
     ## 
