@@ -147,6 +147,7 @@ type
         loginName*: string
         email*: string
         token*: string
+        expire*: Natural 
 
     ProcedureType* = object
         procDesc: ProcType          # return string to be cast into procReturnType
