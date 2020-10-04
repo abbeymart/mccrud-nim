@@ -22,10 +22,10 @@ proc newCrud*(appDb: Database;
             userInfo: UserParamType;
             actionParams: seq[SaveParamType] = @[];
             queryParam: QueryParamType = QueryParamType();
-            queryReadParam: QueryReadParamType = QueryReadParamType();
-            queryDeleteParam: QueryDeleteParamType = QueryDeleteParamType();
-            queryUpdateParam: QueryUpdateParamType = QueryUpdateParamType();
-            querySaveParam: QuerySaveParamType = QuerySaveParamType();
+            queryReadParam: ReadParamType = ReadParamType();
+            queryDeleteParam: DeleteParamType = DeleteParamType();
+            queryUpdateParam: UpdateParamType = UpdateParamType();
+            querySaveParam: SaveParamType = SaveParamType();
             where: seq[WhereParamType] = @[];
             docIds: seq[string] = @[];
             insertInto: seq[InsertIntoType] = @[];
@@ -72,6 +72,7 @@ proc newCrud*(appDb: Database;
     result.queryUpdateParam = queryUpdateParam
     result.querySaveParam = querySaveParam
     result.docIds = docIds
+    
    
     # Create/Update
     result.insertInto = insertInto
@@ -80,7 +81,6 @@ proc newCrud*(appDb: Database;
 
     # Read
     result.queryFunctions = queryFunctions
-    result.where = where
     result.order = order
     result.group = group
     result.having = having
@@ -94,6 +94,7 @@ proc newCrud*(appDb: Database;
     result.defaultLimit = defaultLimit
 
     # Shared
+    result.where = where
     result.auditTable = auditTable
     result.accessTable = accessTable
     result.auditTable = auditTable

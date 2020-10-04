@@ -11,10 +11,11 @@
 ## CRUD helper procedures/functions for the CRUD operations
 ##
 
-import computeSelect, computeWhere, computeUpdate, computeDelete
+import computeCreate, computeSelect, computeWhere, computeUpdate, computeDelete
 import jsonToCrudSaveRecord, jsonToCrudReadRecord, jsonToCrudDeleteRecord, jsonToCrudUpdateRecord
 import auth, utils
 
+export computeCreate
 export computeSelect
 export computeWhere
 export computeUpdate

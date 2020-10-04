@@ -270,33 +270,28 @@ type
         groupLinkOp*: string        # group relationship to the next group (AND, OR)
         groupOrder*: int        # group order, the last group groupLinkOp should be "" or will be ignored
         groupItems*: seq[WhereFieldType] # group items to be composed by category
+    
+    QueryParamType* = object        # same as QueryReadParamType
+        tableName*: string    ## default: "" => will use instance tableName instead
+        fields*: seq[ReadFieldType]   ## @[] => SELECT * (all fields)
+        where*: seq[WhereParamType] ## whereParams or docId(s)  will be required for delete task
 
     SaveParamType* = object
         tableName*: string
         fields*: seq[SaveFieldType]
         where*: seq[WhereParamType]
    
-    QueryParamType* = object        # same as QueryReadParamType
-        tableName*: string    ## default: "" => will use instance tableName instead
-        fields*: seq[ReadFieldType]   ## @[] => SELECT * (all fields)
-        where*: seq[WhereParamType] ## whereParams or docId(s)  will be required for delete task
-
-    QueryReadParamType* = object
+    ReadParamType* = object
         tableName*: string
         fields*: seq[ReadFieldType]
         where*: seq[WhereParamType]
 
-    QuerySaveParamType* = object
-        tableName*: string
-        fields*: seq[SaveFieldType]
-        where*: seq[WhereParamType]
-
-    QueryUpdateParamType* = object
+    UpdateParamType* = object
         tableName*: string
         fields*: seq[UpdateFieldType]
         where*: seq[WhereParamType]
 
-    QueryDeleteParamType* = object
+    DeleteParamType* = object
         tableName*: string
         fields*: seq[DeleteFieldType]
         where*: seq[WhereParamType]
@@ -524,10 +519,10 @@ type
         ##
         actionParams*: seq[SaveParamType]
         queryParam*: QueryParamType
-        queryReadParam*: QueryReadParamType
-        queryDeleteParam*: QueryDeleteParamType
-        queryUpdateParam*: QueryUpdateParamType
-        querySaveParam*: QuerySaveParamType
+        queryReadParam*: ReadParamType
+        queryDeleteParam*: DeleteParamType
+        queryUpdateParam*: UpdateParamType
+        querySaveParam*: SaveParamType
         ## Bulk Insert Operation: 
         ## insertToParams {tableName: "abc", fieldNames: @["field1", "field2"]}
         ## For tableName: "" will use the default constructor tableName
