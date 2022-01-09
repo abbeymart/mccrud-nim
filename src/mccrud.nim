@@ -8,11 +8,13 @@
 #      This is the entry point for mccrud package / library
 # 
 
+import mccrud/dbconnect
 import mccrud/crud
 import mccrud/getrecord
 import mccrud/saverecord
 import mccrud/deleterecord
 
+export dbconnect
 export crud
 export getrecord
 export saverecord
