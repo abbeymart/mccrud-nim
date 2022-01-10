@@ -10,9 +10,9 @@
 
 import tables, json
 import mcresponse
-import ./helpers/helper, ./types, ./auditlog
+import types, auditlog, dbconnect
 
-export helper, types, auditlog
+export types, auditlog
 
 type
         Crud* = ref object of CrudOptionsType
@@ -65,6 +65,10 @@ proc newCrud*(params: CrudParamsType, options: CrudOptionsType): Crud =
     result.fieldSeparator = options.fieldSeparator
     result.appDbs = options.appDbs
     result.appTables = options.appTables
+    if options.dbType == DatabaseType.Postgres or options.dbType == DatabaseType.MySQL or options.dbType == DatabaseType.Sqlite:
+        result.dbType = options.dbType
+    else: 
+        result.dbType = DatabaseType.Postgres
 
     # Default values
     if result.appDbs.len == 0:

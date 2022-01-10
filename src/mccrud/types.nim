@@ -24,9 +24,9 @@ type
         Sqlite ="sqlite"
 
     Database* = ref object
-        db*: postgres.DbConn
-        dbmysql*: mysql.DbConn
-        dbsqlite*: sqlite.DbConn
+        dbc*: postgres.DbConn
+        dbcmysql*: mysql.DbConn
+        dbcsqlite*: sqlite.DbConn
 
     DbSecureType* = object
         secureAccess*: bool
@@ -253,6 +253,14 @@ type
         createdAt*:DateTime
         updatedBy*:string
         updatedAt*:DateTime
+
+    Audit* = ref object of AppBaseModelType
+        tableName*: string
+        logRecords*: JsonNode
+        newLogRecords*: JsonNode
+        logType*: string
+        logBy*: string  # login/user-name
+        logAt*: Datetime    
 
     Application* = object
         id*: string         # stored as uuid in the DB

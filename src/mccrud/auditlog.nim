@@ -13,21 +13,23 @@
 ## 
 ## 
 
-import db_postgres, json, times
+import json, times
 import mcresponse
-import ./types
+import types, dbconnect
 
 # Define types
 type
     LogParam* = object
         auditDb*: Database
         auditTable*: string
+        dbType*: DatabaseType
 
 # contructor
-proc newLog*(auditDb: Database; auditTable: string = "audits"): LogParam =
+proc newLog*(auditDb: Database; auditTable: string = "audits", dbType: DatabaseType = DatabaseType.Postgres): LogParam =
     # new result
     result.auditDb = auditDb
     result.auditTable = auditTable
+    result.dbType = dbType
  
 proc createLog*(log: LogParam; table: string; logRecords: JsonNode; userId: string ): ResponseMessage =
     try:
@@ -52,12 +54,17 @@ proc createLog*(log: LogParam; table: string; logRecords: JsonNode; userId: stri
         if errorMessage != "":
             raise newException(ValueError, errorMessage)
 
-        # echo "params-passed"
-        # store action record
-        var taskQuery = sql("INSERT INTO " & log.auditTable & " (coll_name, coll_documents, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
-
+        # task-query
+        var taskQuery = sql("INSERT INTO " & log.auditTable & " (table_name, log_records, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
+      
         # echo "run-query"
-        log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        case log.dbType
+        of DatabaseType.Postgres:
+            log.auditDb.dbc.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.MySQL:
+            log.auditDb.dbcmysql.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.Sqlite:
+            log.auditDb.dbcsqlite.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)    
         
         # send response
         return getResMessage(MessageCode.SuccessCode, ResponseMessage(value: logRecords, message: "successful create-log action"))
@@ -74,7 +81,7 @@ proc updateLog*(log: LogParam; table: string; logRecords: JsonNode; newLogRecord
             tableName = table
             logRecords = logRecords
             newLogRecords = newLogRecords
-            logType = "update"
+            logType = CrudTasksType.UpdateTask
             logBy = userId
             logAt = now().utc
 
@@ -93,9 +100,16 @@ proc updateLog*(log: LogParam; table: string; logRecords: JsonNode; newLogRecord
             raise newException(ValueError, errorMessage)
 
         # store action record
-        var taskQuery = sql("INSERT INTO " & log.auditTable & " (coll_name, coll_documents, new_coll_documents, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?, ?);")
+        var taskQuery = sql("INSERT INTO " & log.auditTable & " (table_name, log_records, new_log_records, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?, ?);")
 
-        log.auditDb.db.exec(taskQuery, tableName, logRecords, newLogRecords, logType, logBy, logAt)
+        # perform db-specific crud-task
+        case log.dbType
+        of DatabaseType.Postgres:
+            log.auditDb.dbc.exec(taskQuery, tableName, logRecords, newLogRecords, logType, logBy, logAt)
+        of DatabaseType.MySQL:
+            log.auditDb.dbcmysql.exec(taskQuery, tableName, logRecords, newLogRecords, logType, logBy, logAt)
+        of DatabaseType.Sqlite:
+            log.auditDb.dbcsqlite.exec(taskQuery, tableName, logRecords, newLogRecords, logType, logBy, logAt)    
         
         # send response
         return getResMessage(MessageCode.SuccessCode, ResponseMessage(value: newLogRecords, message: "successful update-log action"))
@@ -127,9 +141,15 @@ proc readLog*(log: LogParam; table: string; logRecords: JsonNode; userId: string
             raise newException(ValueError, errorMessage)
 
         # store action record
-        var taskQuery = sql("INSERT INTO " & log.auditTable & " (coll_name, coll_documents, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
+        var taskQuery = sql("INSERT INTO " & log.auditTable & " (table_name, log_records, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
 
-        log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        case log.dbType
+        of DatabaseType.Postgres:
+            log.auditDb.dbc.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.MySQL:
+            log.auditDb.dbcmysql.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.Sqlite:
+            log.auditDb.dbcsqlite.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)    
         
         # send response
         return getResMessage(Messagecode.SuccessCode, ResponseMessage(value: logRecords, message: "successful read-log action"))
@@ -161,9 +181,15 @@ proc deleteLog*(log: LogParam; table: string; logRecords: JsonNode; userId: stri
             raise newException(ValueError, errorMessage)
 
         # store action record
-        var taskQuery = sql("INSERT INTO " & log.auditTable & " (coll_name, coll_documents, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
+        var taskQuery = sql("INSERT INTO " & log.auditTable & " (table_name, log_records, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
 
-        log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        case log.dbType
+        of DatabaseType.Postgres:
+            log.auditDb.dbc.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.MySQL:
+            log.auditDb.dbcmysql.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.Sqlite:
+            log.auditDb.dbcsqlite.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)    
         
         # send response
         return getResMessage(Messagecode.SuccessCode, ResponseMessage(value: logRecords, message: "successful remove-log action"))
@@ -194,10 +220,16 @@ proc loginLog*(log: LogParam; table: string = "users"; loginParams: JsonNode; us
             raise newException(ValueError, errorMessage)
 
         # store action record
-        var taskQuery = sql("INSERT INTO " & log.auditTable & " (coll_name, coll_documents, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
+        var taskQuery = sql("INSERT INTO " & log.auditTable & " (table_name, log_records, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
 
-        log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
-        
+        case log.dbType
+        of DatabaseType.Postgres:
+            log.auditDb.dbc.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.MySQL:
+            log.auditDb.dbcmysql.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.Sqlite:
+            log.auditDb.dbcsqlite.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)    
+       
         # send response
         return getResMessage(MessageCode.SuccessCode, ResponseMessage(value: nil, message: "successful login-log action"))
     
@@ -227,9 +259,15 @@ proc logoutLog*(log: LogParam; table: string = "users"; logoutParams: JsonNode; 
             raise newException(ValueError, errorMessage)
 
         # store action record
-        var taskQuery = sql("INSERT INTO " & log.auditTable & " (coll_name, coll_documents, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
+        var taskQuery = sql("INSERT INTO " & log.auditTable & " (table_name, log_records, log_type, log_by, log_at ) VALUES (?, ?, ?, ?, ?);")
 
-        log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        case log.dbType
+        of DatabaseType.Postgres:
+            log.auditDb.dbc.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.MySQL:
+            log.auditDb.dbcmysql.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
+        of DatabaseType.Sqlite:
+            log.auditDb.dbcsqlite.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)    
         
         # send response
         return getResMessage(MessageCode.SuccessCode, ResponseMessage(value: nil, message: "successful logout-log action"))
