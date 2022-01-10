@@ -12,7 +12,7 @@ import db_postgres as postgres
 import db_mysql as mysql
 import db_sqlite as sqlite
 import json, tables, times
-import mcresponse
+import mcresponse, ./auditlog
 
 # Define crud types
 
@@ -322,18 +322,18 @@ type
     FieldValueType* = string | int | float | bool | object | seq[string] | seq[int] | seq[bool] | seq[float] | seq[object] | Time
 
     # ActionParamType* = Table[string, FieldValueType]
-    ActionParamType* = Table[string, FieldValueType]
+    ActionParamType* = JsonNode
 
     ValueToDataType* = Table[string, FieldValueType]
 
-    ActionParamsType* = seq[Table[string, FieldValueType]]
+    ActionParamsType* = seq[JsonNode]
 
     SortParamType* = Table[string, int]
 
     ProjectParamType* = Table[string, int]
 
     # QueryParamType* = Table[string, FieldValueType]
-    QueryParamType* = Table[string, FieldValueType]
+    QueryParamType* = JsonNode
 
     ModelOptionsType* = object
         timeStamp*: bool
@@ -341,10 +341,11 @@ type
         actorStamp*:bool
     
     ## CrudParamsType is the struct type for receiving, composing and passing CRUD inputs
-    CrudParamsType*[M] = object
-        modelRef*: M
+    CrudParamsType* = ref object of RootObj
+        modelRef*: JsonNode
         appDb*: Database
         tableName*: string
+        tableFields*: seq[string]
         userInfo*: UserInfoType
         actionParams*: ActionParamsType
         queryParams*: QueryParamType
@@ -358,7 +359,7 @@ type
         taskType*: string
         appParams*: AppParamsType
 
-    CrudOptionsType* = object
+    CrudOptionsType* = ref object of CrudParamsType
         checkAccess*: bool
         cacheResult*: bool
         bulkCreate*: bool
@@ -410,16 +411,27 @@ type
     QueryFieldValueType*[V] = object
         value*: V
 
+    FieldValueDescType*[T] = object
+        valueType*: DataTypes
+        value*: T
+
+    FieldValuesType* = seq[FieldValueDescType]
+    FieldValuesTypes* = seq[seq[FieldValueDescType]]
+    
     CreateQueryObject* = object
+        createQueryWithValues*: seq[string]
         createQuery*: string
         fieldNames*: seq[string]
-        fieldValues*: seq[seq[string]]
+        # TODO: determine generic-type for fieldValue
+        fieldValues*: seq[seq[string]]  
 
     WhereQueryObject* = object
+        whereQueryWithValues*: string
         whereQuery*: string
         fieldValues*: seq[string]
 
     UpdateQueryObject* = object
+        updateQueryWithValues*: seq[string]
         updateQuery*: string
         fieldNames*: seq[string]
         fieldValues*: seq[string]
@@ -431,6 +443,7 @@ type
         whereQuery*: WhereQueryObject
 
     SelectQueryObject* = object
+        selectQueryWithWhere*: string
         selectQuery*: string
         fieldValues*: seq[string]
         whereQuery*: WhereQueryObject
@@ -465,22 +478,22 @@ type
         ok*: bool
         message*: string
 
-    LogRecordsType*[L, T] = object
-        logRecords*: L
+    LogRecordsType* = object
+        logRecords*: JsonNode
         queryParam*: QueryParamType
         recordIds*: seq[string]
         tableFields*: seq[string]
-        tableRecords*: seq[T]
+        tableRecords*: seq[JsonNode]
 
-    CrudResultType*[T] = object
+    CrudResultType* = object
         queryParam*: QueryParamType
         recordIds*: seq[string]
         recordsCount*: int
-        records*: seq[T]
+        records*: seq[JsonNode]
         taskType*: CrudTasksType
         logRes*: ResponseMessage
 
-    GetStatType*[T] = object
+    GetStatType* = object
         skip*: int
         limit*: int
         recordsCount*: int
@@ -489,13 +502,13 @@ type
         recordIds*: seq[string]
         expire*: int
 
-    GetResultType*[T] = object
-        records*: seq[T]
+    GetResultType* = object
+        records*: seq[JsonNode]
         stats*: GetStatType
         taskType*: CrudTasksType
         logRes*: ResponseMessage
 
-    SaveResultType*[T] = object
+    SaveResultType* = object
         queryParam*: QueryParamType
         recordIds*: seq[string]
         recordsCount*: int
@@ -519,5 +532,3 @@ type
     CreateQueryError* = object of CatchableError
     UpdateQueryError* = object of CatchableError
     DeleteQueryError* = object of CatchableError
-
-    
