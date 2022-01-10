@@ -12,7 +12,7 @@ import db_postgres as postgres
 import db_mysql as mysql
 import db_sqlite as sqlite
 import json, tables, times
-import mcresponse, ./auditlog
+import mcresponse
 
 # Define crud types
 

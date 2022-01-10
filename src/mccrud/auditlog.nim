@@ -13,11 +13,9 @@
 ## 
 ## 
 
-# types
-import types
 import db_postgres, json, times
 import mcresponse
-# import dbconnect
+import ./types
 
 # Define types
 type
@@ -37,7 +35,7 @@ proc createLog*(log: LogParam; table: string; logRecords: JsonNode; userId: stri
         let
             tableName = table
             logRecords = logRecords
-            logType = "create"
+            logType = CrudTasksType.CreateTask
             logBy = userId
             logAt = now().utc
 
@@ -62,12 +60,12 @@ proc createLog*(log: LogParam; table: string; logRecords: JsonNode; userId: stri
         log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
         
         # send response
-        return getResMessage("success", ResponseMessage(value: logRecords, message: "successful create-log action"))
+        return getResMessage(MessageCode.SuccessCode, ResponseMessage(value: logRecords, message: "successful create-log action"))
     
     except:
         # echo getCurrentException.repr
         # echo getCurrentExceptionMsg()
-        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
+        return getResMessage(MessageCode.InsertErrorCode, ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 proc updateLog*(log: LogParam; table: string; logRecords: JsonNode; newLogRecords: JsonNode; userId: string ): ResponseMessage =
     try:
@@ -100,11 +98,11 @@ proc updateLog*(log: LogParam; table: string; logRecords: JsonNode; newLogRecord
         log.auditDb.db.exec(taskQuery, tableName, logRecords, newLogRecords, logType, logBy, logAt)
         
         # send response
-        return getResMessage("success", ResponseMessage(value: newLogRecords, message: "successful update-log action"))
+        return getResMessage(MessageCode.SuccessCode, ResponseMessage(value: newLogRecords, message: "successful update-log action"))
     
     except:
         # echo getCurrentExceptionMsg()
-        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
+        return getResMessage(MessageCode.InsertErrorCode, ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 proc readLog*(log: LogParam; table: string; logRecords: JsonNode; userId: string ): ResponseMessage =
     try:
@@ -134,11 +132,11 @@ proc readLog*(log: LogParam; table: string; logRecords: JsonNode; userId: string
         log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
         
         # send response
-        return getResMessage("success", ResponseMessage(value: logRecords, message: "successful read-log action"))
+        return getResMessage(Messagecode.SuccessCode, ResponseMessage(value: logRecords, message: "successful read-log action"))
     
     except:
         echo getCurrentException.repr
-        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
+        return getResMessage(MessageCode.InsertErrorCode, ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 proc deleteLog*(log: LogParam; table: string; logRecords: JsonNode; userId: string ): ResponseMessage =
     try:
@@ -168,10 +166,10 @@ proc deleteLog*(log: LogParam; table: string; logRecords: JsonNode; userId: stri
         log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
         
         # send response
-        return getResMessage("success", ResponseMessage(value: logRecords, message: "successful remove-log action"))
+        return getResMessage(Messagecode.SuccessCode, ResponseMessage(value: logRecords, message: "successful remove-log action"))
     
     except:
-        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
+        return getResMessage(Messagecode.InsertErrorCode, ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 proc loginLog*(log: LogParam; table: string = "users"; loginParams: JsonNode; userId: string ): ResponseMessage =
     try:
@@ -201,10 +199,10 @@ proc loginLog*(log: LogParam; table: string = "users"; loginParams: JsonNode; us
         log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
         
         # send response
-        return getResMessage("success", ResponseMessage(value: nil, message: "successful login-log action"))
+        return getResMessage(MessageCode.SuccessCode, ResponseMessage(value: nil, message: "successful login-log action"))
     
     except:
-        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
+        return getResMessage(MessageCode.InsertErrorCode, ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
 
 proc logoutLog*(log: LogParam; table: string = "users"; logoutParams: JsonNode; userId: string ): ResponseMessage =
     try:
@@ -234,8 +232,8 @@ proc logoutLog*(log: LogParam; table: string = "users"; logoutParams: JsonNode; 
         log.auditDb.db.exec(taskQuery, tableName, logRecords, logType, logBy, logAt)
         
         # send response
-        return getResMessage("success", ResponseMessage(value: nil, message: "successful logout-log action"))
+        return getResMessage(MessageCode.SuccessCode, ResponseMessage(value: nil, message: "successful logout-log action"))
     
     except:
         # echo getCurrentExceptionMsg()
-        return getResMessage("insertError", ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
+        return getResMessage(MessageCode.InsertErrorCode, ResponseMessage(value: nil, message: getCurrentExceptionMsg()))
